@@ -1,100 +1,106 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>일일 전도 활동 종합 계산기</title>
+<meta charset="UTF-8">
+<title>일일 전도 활동 종합 계산기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
+h2 { text-align: center; margin-bottom: 10px; }
+textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
+button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
+button:hover { background: #45a049; }
+#result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
+</style>
 </head>
 <body>
 
-<h2>일일 전도 활동 종합</h2>
+<h2>일일 전도 활동 종합 계산기</h2>
 
-<textarea id="input" rows="20" cols="80" placeholder="여기에 보고 텍스트 붙여넣기"></textarea>
-<br><br>
-
-<button onclick="run()">분석</button>
-
-<pre id="output"></pre>
+<textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
+<button id="calculateBtn">종합하기</button>
+<div id="result"></div>
+<button id="copyBtn">결과 복사</button>
 
 <script>
-function analyzeReport(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+const ALLOWED_GROUP = ["당일 찾기","당일 섭외","당일 만남"];
 
-  const COLS = {
-    FIND: 3,
-    CAST: 4,
-    MEET: 5,
-    STEP: 6,
-    COUNSEL: 7,
-    WORD: 8,
-    CENTER: 9
-  };
+function getColName(i){
+  return ["섭외자보유","당일 찾기","당일 섭외","당일 만남",
+          "단계향상 만남","상담따기","말씀따기","센터확답"][i-2];
+}
 
-  const sum = Array(8).fill(0);
-  const nameMap = {};
-  const wordMap = {};
-  const centerMap = {};
+document.getElementById("calculateBtn").onclick = () => {
+  const text = document.getElementById("inputText").value;
+  const lines = text.split(/\r?\n/);
+  const sums = Array(8).fill(0);
+  const nameCols = {};
+  const halfCount = {};
+  let errors = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].startsWith('종합')) break;
-    const cols = lines[i].split('/');
+  lines.forEach((line) => {
+    if(!line.match(/^\d+\//)) return;
+    const p = line.split("/");
 
-    cols.forEach((cell, idx) => {
-      if (!cell || cell === '0') return;
+    for(let i=2;i<=9;i++){
+      if(!p[i] || p[i]==="0") continue;
 
-      const num = parseFloat(cell);
-      if (!isNaN(num) && idx >= 2 && idx <= 9) {
-        sum[idx - 2] += num;
-      }
+      const num = parseFloat(p[i]);
+      if(!isNaN(num)) sums[i-2] += num;
 
-      const matches = cell.match(/\(([^)]+)\)/g);
-      if (!matches) return;
+      const m = p[i].match(/\(([^)]+)\)/);
+      if(!m) continue;
 
-      matches.forEach(m => {
-        m.replace(/[()]/g, '').split(' ').forEach(n => {
-          const r = n.match(/^(.+?)(\d+(\.\d+)?)$/);
-          if (!r) return;
+      m[1].split(" ").forEach(n => {
+        const name = n.replace(/[0-9.]/g,"");
+        const col = getColName(i);
 
-          const name = r[1];
-          const val = parseFloat(r[2]);
+        if(!nameCols[name]) nameCols[name] = new Set();
+        nameCols[name].add(col);
 
-          if (!nameMap[name]) nameMap[name] = { cols: new Set(), half: 0 };
-          nameMap[name].cols.add(idx);
-          if (val === 0.5) nameMap[name].half++;
-
-          if (idx === COLS.WORD) wordMap[name] = (wordMap[name] || 0) + val;
-          if (idx === COLS.CENTER) centerMap[name] = (centerMap[name] || 0) + val;
-        });
+        if(n.includes(".5")){
+          halfCount[name] = (halfCount[name]||0)+1;
+        }
       });
-    });
-  }
-
-  const errors = [];
-
-  Object.entries(nameMap).forEach(([name, info]) => {
-    if (info.half === 1) {
-      errors.push(`"${name}.5" 는 한 번만 기록되었습니다. 어떤 구역과 함께 하셨나요?`);
     }
   });
 
-  if (errors.length) {
-    return '오류:\n' + errors.join('\n');
+  /* --- 오류 판단 --- */
+
+  // 다른 칸 중복
+  for(const name in nameCols){
+    const cols = [...nameCols[name]];
+    const illegal = cols.filter(c => !ALLOWED_GROUP.includes(c));
+    if(illegal.length >= 2){
+      errors.push(`"${name}": ${illegal.join(" vs ")}`);
+    }
   }
 
-  const buildNames = map =>
-    Object.entries(map).map(([n, v]) => `${n}${v}`).join(' ');
+  // .5 단독 등장
+  for(const n in halfCount){
+    if(halfCount[n] === 1){
+      errors.push(`"${n}.5"는 어떤 구역과 함께 하셨나요?`);
+    }
+  }
 
-  return (
-    '종합/' +
-    sum.slice(0, 6).map(n => Math.round(n)).join('/') +
-    `/${Math.round(sum[6])}${Object.keys(wordMap).length ? `(${buildNames(wordMap)})` : ''}` +
-    `/${Math.round(sum[7])}${Object.keys(centerMap).length ? `(${buildNames(centerMap)})` : ''}`
+  // 오류 있으면 종합 X
+  if(errors.length){
+    document.getElementById("result").innerText =
+      "오류: " + errors.join("; ");
+    return;
+  }
+
+  // ✅ 종합 (정수만)
+  const result = sums.map(n=>Math.round(n)).join("/");
+  document.getElementById("result").innerText = "종합/" + result;
+};
+
+document.getElementById("copyBtn").onclick = () => {
+  navigator.clipboard.writeText(
+    document.getElementById("result").innerText
   );
-}
-
-function run() {
-  const text = document.getElementById('input').value;
-  document.getElementById('output').textContent = analyzeReport(text);
-}
+  alert("결과가 복사되었습니다!");
+};
 </script>
 
 </body>
