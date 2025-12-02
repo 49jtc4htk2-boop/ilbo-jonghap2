@@ -23,99 +23,85 @@ button:hover { background: #45a049; }
 <button id="copyBtn">결과 복사</button>
 
 <script>
-function getColName(index){
-    switch(index){
-        case 2: return "섭외자보유";
-        case 3: return "당일 찾기";
-        case 4: return "당일 섭외";
-        case 5: return "당일 만남";
-        case 6: return "단계향상 만남";
-        case 7: return "상담따기";
-        case 8: return "말씀따기";
-        case 9: return "센터확답";
-    }
+function getColName(i){
+  return ["섭외자보유","당일 찾기","당일 섭외","당일 만남",
+          "단계향상 만남","상담따기","말씀따기","센터확답"][i-2];
 }
 
-document.getElementById('calculateBtn').addEventListener('click', function() {
-    const text = document.getElementById('inputText').value;
-    const numbers = [0,0,0,0,0,0,0,0];
-    const nameMap = {};
-    const halfMap = {}; // .5 등장 횟수
-    const lines = text.split(/\r?\n/);
+const ALLOWED = ["당일 찾기","당일 섭외","당일 만남"];
 
-    lines.forEach((line, lineIndex) => {
-        if(!line.match(/^\d+\//)) return;
-        const parts = line.split('/');
-        for(let i=2;i<=9;i++){
-            if(parts[i]){
-                // 숫자 합산
-                const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
-                if(match) numbers[i-2] += parseFloat(match[0]);
+document.getElementById("calculateBtn").onclick = () => {
+  const text = document.getElementById("inputText").value;
+  const lines = text.split(/\r?\n/);
 
-                // 이름 추출
-                const nameMatches = parts[i].match(/\(([^)]+)\)/g);
-                if(nameMatches){
-                    nameMatches.forEach(raw => {
-                        const names = raw.replace(/[()]/g,'').split(' ');
-                        names.forEach(name => {
-                            // .5 체크
-                            if(name.includes('.5')){
-                                if(!halfMap[name]) halfMap[name] = 0;
-                                halfMap[name]++;
-                            }
+  const sums = Array(8).fill(0);
+  const nameToCols = {};
+  const halfCount = {};
+  const errors = [];
 
-                            if(!nameMap[name]) nameMap[name] = {};
-                            if(!nameMap[name][i]) nameMap[name][i] = new Set();
-                            nameMap[name][i].add(lineIndex); 
-                        });
-                    });
-                }
-            }
+  lines.forEach(line => {
+    if(!/^\d+\//.test(line)) return;
+    const parts = line.split("/");
+
+    for(let i=2;i<=9;i++){
+      const cell = parts[i];
+      if(!cell) continue;
+
+      const num = parseFloat(cell);
+      if(!isNaN(num)) sums[i-2] += num;
+
+      const m = cell.match(/\(([^)]+)\)/);
+      if(!m) continue;
+
+      m[1].split(" ").forEach(n => {
+        const name = n.replace(/[0-9.]/g,"");
+        const col = getColName(i);
+
+        if(!nameToCols[name]) nameToCols[name] = new Set();
+        nameToCols[name].add(col);
+
+        if(n.includes(".5")){
+          halfCount[name] = (halfCount[name]||0)+1;
         }
-    });
-
-    const errors = [];
-
-    // 다른 줄, 다른 칸 체크 (간편화 메시지)
-    for(let name in nameMap){
-        const cols = Object.keys(nameMap[name]);
-        for(let j=0;j<cols.length;j++){
-            for(let k=j+1;k<cols.length;k++){
-                const colA = cols[j];
-                const colB = cols[k];
-                const linesA = Array.from(nameMap[name][colA]);
-                const linesB = Array.from(nameMap[name][colB]);
-                if(linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))){
-                    errors.push(`"${name}": ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
-                }
-            }
-        }
+      });
     }
+  });
 
-    // .5 체크: 한 번만 나오면 오류
-    for(let name in halfMap){
-        if(halfMap[name] === 1){
-            errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
-        }
+  /* ✅ 다른 칸 중복 오류 */
+  for(const name in nameToCols){
+    const cols = [...nameToCols[name]];
+    const illegal = cols.filter(c => !ALLOWED.includes(c));
+    if(illegal.length >= 2){
+      errors.push(`"${name}": ${illegal.join(" vs ")}`);
     }
+  }
 
-    // 소수점 처리
-    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
-    numbers[5] = Math.round(numbers[5]); // 상담따기
-    for(let i=0;i<numbers.length;i++){
-        if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
+  /* ✅ .5 단독 오류 */
+  for(const name in halfCount){
+    if(halfCount[name] === 1){
+      errors.push(`"${name}.5"는 어떤 구역과 함께 하셨나요?`);
     }
+  }
 
-    const resultText = errors.length>0 ? "오류: "+errors.join('; ') : '종합/' + numbers.join('/');
-    document.getElementById('result').innerText = resultText;
-});
+  /* ❌ 오류 있으면 종합 중단 */
+  if(errors.length){
+    document.getElementById("result").innerText =
+      "오류: " + errors.join("; ");
+    return;
+  }
 
-document.getElementById('copyBtn').addEventListener('click', function(){
-    const result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
-});
+  /* ✅ 종합 (정수만) */
+  const result = sums.map(n => Math.round(n)).join("/");
+  document.getElementById("result").innerText = "종합/" + result;
+};
+
+document.getElementById("copyBtn").onclick = () => {
+  navigator.clipboard.writeText(
+    document.getElementById("result").innerText
+  );
+  alert("결과가 복사되었습니다!");
+};
 </script>
 
 </body>
 </html>
-
