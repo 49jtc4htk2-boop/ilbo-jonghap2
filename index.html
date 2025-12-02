@@ -26,37 +26,71 @@ button:hover { background: #45a049; }
 document.getElementById('calculateBtn').addEventListener('click', function() {
     const text = document.getElementById('inputText').value;
     const numbers = [0,0,0,0,0,0,0,0]; // 8개 항목
-
+    const nameMap = {}; // 이름 -> Set(칸 인덱스)
+    const errorMap = {}; // 이름 -> Set(칸 인덱스 충돌)
+    
     const lines = text.split(/\r?\n/);
-
     lines.forEach(line => {
         if(!line.match(/^\d+\//)) return; // 숫자로 시작하는 줄만
         const parts = line.split('/');
-        for(let i=2; i<=9; i++){ // 3~10번째 항목
+        for(let i=2; i<=9; i++){ // 3~10번째 칸
             if(parts[i]){
-                // / 바로 옆 숫자만, 괄호 안 숫자 무시
+                // 괄호 안 이름 추출
+                const nameMatches = parts[i].match(/\(([^)]+)\)/g);
+                if(nameMatches){
+                    nameMatches.forEach(raw => {
+                        const names = raw.replace(/[()]/g,'').split(' ');
+                        names.forEach(name => {
+                            if(!nameMap[name]) nameMap[name] = new Set();
+                            const existing = Array.from(nameMap[name]);
+                            if(existing.length>0 && !nameMap[name].has(i)){
+                                if(!errorMap[name]) errorMap[name] = new Set([...existing, i]);
+                            }
+                            nameMap[name].add(i);
+                        });
+                    });
+                }
+                // 숫자만 추출해서 합산
                 const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
                 if(match){
-                    let value = parseFloat(match[0]);
-                    numbers[i-2] += value;
+                    numbers[i-2] += parseFloat(match[0]);
                 }
             }
         }
     });
 
     // 소수점 처리
-    // 단계향상 만남: index 4 → 그대로 합산 (0이면 0)
-    numbers[4] = Math.floor(numbers[4]); 
-    // 상담따기: index 5 → 반올림
-    numbers[5] = Math.round(numbers[5]); 
-    // 나머지 항목: 정수화
+    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
+    numbers[5] = Math.round(numbers[5]); // 상담따기
     for(let i=0;i<numbers.length;i++){
-        if(i!==4 && i!==5){
-            numbers[i] = Math.round(numbers[i]);
-        }
+        if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
     }
 
-    document.getElementById('result').innerText = '종합/' + numbers.join('/');
+    // 최종 결과
+    let resultText;
+    if(Object.keys(errorMap).length>0){
+        const msgs = [];
+        for(let name in errorMap){
+            const cols = Array.from(errorMap[name]).map(c=>{
+                switch(c){
+                    case 2: return "섭외자보유";
+                    case 3: return "당일 찾기";
+                    case 4: return "당일 섭외";
+                    case 5: return "당일 만남";
+                    case 6: return "단계향상 만남";
+                    case 7: return "상담따기";
+                    case 8: return "말씀따기";
+                    case 9: return "센터확답";
+                }
+            });
+            msgs.push(`"${name}"가 다른 줄에서 서로 다른 칸에 등장: ${cols.join(' vs ')}`);
+        }
+        resultText = '오류: ' + msgs.join('; ');
+    } else {
+        resultText = '종합/' + numbers.join('/');
+    }
+
+    document.getElementById('result').innerText = resultText;
 });
 
 document.getElementById('copyBtn').addEventListener('click', function() {
