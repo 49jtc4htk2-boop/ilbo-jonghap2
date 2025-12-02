@@ -35,13 +35,26 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         for(let i=2; i<=9; i++){ // 3~10번째 항목
             if(parts[i]){
                 // / 바로 옆 숫자만, 괄호 안 숫자 무시
-                const match = parts[i].match(/^\d+(\.\d+)?/);
+                const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
                 if(match){
-                    numbers[i-2] += parseFloat(match[0]);
+                    let value = parseFloat(match[0]);
+                    numbers[i-2] += value;
                 }
             }
         }
     });
+
+    // 소수점 처리
+    // 단계향상 만남: index 4 → 그대로 합산 (0이면 0)
+    numbers[4] = Math.floor(numbers[4]); 
+    // 상담따기: index 5 → 반올림
+    numbers[5] = Math.round(numbers[5]); 
+    // 나머지 항목: 정수화
+    for(let i=0;i<numbers.length;i++){
+        if(i!==4 && i!==5){
+            numbers[i] = Math.round(numbers[i]);
+        }
+    }
 
     document.getElementById('result').innerText = '종합/' + numbers.join('/');
 });
@@ -56,4 +69,3 @@ document.getElementById('copyBtn').addEventListener('click', function() {
 
 </body>
 </html>
-
