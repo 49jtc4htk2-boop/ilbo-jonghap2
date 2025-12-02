@@ -1,143 +1,92 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<title>일일 활동 종합 계산기</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
-h2 { text-align: center; margin-bottom: 10px; }
-textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
-button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #0081ff; color: white; }
-button:hover { background: #839304; }
-#result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
-</style>
-</head>
-<body>
-
-<h2>일일 활동 종합 계산기</h2>
-
-<textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
-<button id="calculateBtn">종합하기</button>
-<div id="result"></div>
-<button id="copyBtn">결과 복사</button>
-
 <script>
 function getColName(index){
-    switch(index){
-        case 2: return "섭외자보유";
-        case 3: return "당일 찾기";
-        case 4: return "당일 섭외";
-        case 5: return "당일 만남";
-        case 6: return "단계향상 만남";
-        case 7: return "상담따기";
-        case 8: return "말씀따기";
-        case 9: return "센터확답";
-    }
+  return ["","",
+    "섭외자보유","당일 찾기","당일 섭외","당일 만남",
+    "단계향상 만남","상담따기","말씀따기","센터확답"
+  ][index];
 }
 
-document.getElementById('calculateBtn').addEventListener('click', function() {
-    const text = document.getElementById('inputText').value;
-    const numbers = [0,0,0,0,0,0,0,0];
-    const nameMap = {};
-    const halfMap = {};
-    const lines = text.split(/\r?\n/);
+document.getElementById('calculateBtn').onclick = () => {
+  const text = document.getElementById('inputText').value;
+  const lines = text.split(/\r?\n/);
 
-    lines.forEach((line, lineIndex) => {
-        if(!line.match(/^\d+\//)) return;
-        const parts = line.split('/');
-        for(let i=2;i<=9;i++){
-            if(parts[i]){
-                const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
-                if(match) numbers[i-2] += parseFloat(match[0]);
+  const sum = [0,0,0,0,0,0,0,0];
+  const wordMap = {};
+  const centerMap = {};
+  const namePos = {};
+  const halfCount = {};
+  const errors = [];
 
-                const nameMatches = parts[i].match(/\(([^)]+)\)/g);
-                if(nameMatches){
-                    nameMatches.forEach(raw => {
-                        const names = raw.replace(/[()]/g,'').split(' ');
-                        names.forEach(name => {
-                            if(name.includes('.5')){
-                                halfMap[name] = (halfMap[name] || 0) + 1;
-                            }
-                            if(!nameMap[name]) nameMap[name] = {};
-                            if(!nameMap[name][i]) nameMap[name][i] = new Set();
-                            nameMap[name][i].add(lineIndex);
-                        });
-                    });
-                }
-            }
-        }
-    });
+  lines.forEach((line, lineIdx) => {
+    if (!line.match(/^\d+\//)) return;
+    const cols = line.split('/');
 
-    const errors = [];
+    for (let i = 2; i <= 9; i++) {
+      if (!cols[i]) continue;
 
-    // 다른 줄, 다른 칸 체크
-    for(let name in nameMap){
-        const cols = Object.keys(nameMap[name]);
-        for(let j=0;j<cols.length;j++){
-            for(let k=j+1;k<cols.length;k++){
-                const colA = cols[j];
-                const colB = cols[k];
-                const linesA = Array.from(nameMap[name][colA]);
-                const linesB = Array.from(nameMap[name][colB]);
-                if(linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))){
-                    errors.push(`"${name}": ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
-                }
-            }
-        }
+      // 숫자 합산
+      const num = parseFloat(cols[i]);
+      if (!isNaN(num)) sum[i-2] += num;
+
+      // 괄호 안 처리
+      const matches = cols[i].match(/\(([^)]+)\)/g);
+      if (!matches) continue;
+
+      matches.forEach(m => {
+        m.replace(/[()]/g,'').split(' ').forEach(n => {
+          const match = n.match(/^(.+?)(\d+(\.\d+)?)$/);
+          if (!match) return;
+
+          const name = match[1];
+          const val = parseFloat(match[2]);
+
+          // 위치 기록 (다른 줄, 다른 칸 오류용)
+          namePos[name] ??= {};
+          namePos[name][i] ??= new Set();
+          namePos[name][i].add(lineIdx);
+
+          // .5 단독 체크
+          if (val === 0.5) {
+            halfCount[name] = (halfCount[name]||0)+1;
+          }
+
+          // 말씀따기 / 센터확답 누적
+          if (i === 8) wordMap[name] = (wordMap[name]||0)+val;
+          if (i === 9) centerMap[name] = (centerMap[name]||0)+val;
+        });
+      });
     }
+  });
 
-    // .5 체크
-    for(let name in halfMap){
-        if(halfMap[name] === 1){
-            errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
-        }
+  // 다른 줄 다른 칸 오류
+  Object.entries(namePos).forEach(([name, cols])=>{
+    const keys = Object.keys(cols);
+    if (keys.length > 1) {
+      errors.push(`"${name}": ${getColName(keys[0])} vs ${getColName(keys[1])}`);
     }
+  });
 
-    // 말씀따기 / 센터확답 처리
-    const specialCols = [8,9];
-    const specialResult = {};
-    specialCols.forEach(col => {
-        const nameCount = {};
-        for(let name in nameMap){
-            if(nameMap[name][col]){
-                nameCount[name] = (nameCount[name] || 0) + 1;
-            }
-        }
-        const display = [];
-        for(let name in nameCount){
-            display.push(name+'1'); // 무조건 이름 뒤에 1
-        }
-        specialResult[col] = display.join(' '); // 공백 구분
-    });
+  // .5 단독 오류
+  Object.entries(halfCount).forEach(([n,c])=>{
+    if (c === 1) errors.push(`"${n}.5"는 어떤 구역과 함께 하셨나요?`);
+  });
 
-    // 숫자 처리
-    numbers[4] = Math.floor(numbers[4]);
-    numbers[5] = Math.round(numbers[5]);
-    for(let i=0;i<numbers.length;i++){
-        if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
-    }
+  if (errors.length) {
+    document.getElementById('result').innerText = "오류: " + errors.join('; ');
+    return;
+  }
 
-    let resultText;
-    if(errors.length>0){
-        resultText = "오류: " + errors.join('; ');
-    } else {
-        resultText = '종합/';
-        for(let i=0;i<=6;i++){
-            resultText += numbers[i] + '/';
-        }
-        resultText += specialResult[8] ? specialResult[8] + '/' : '0/';
-        resultText += specialResult[9] ? specialResult[9] : '0';
-    }
+  // 이름 문자열 생성 함수
+  const nameText = map =>
+    Object.entries(map)
+      .map(([n,v])=>`${n}${Number.isInteger(v)?v:v}`)
+      .join(' ');
 
-    document.getElementById('result').innerText = resultText;
-});
+  const result =
+    `종합/${sum.slice(0,6).map(n=>Math.round(n)).join('/')}/` +
+    `${Math.round(sum[6])}${Object.keys(wordMap).length?`(${nameText(wordMap)})`:''}/` +
+    `${Math.round(sum[7])}${Object.keys(centerMap).length?`(${nameText(centerMap)})`:''}`;
 
-document.getElementById('copyBtn').addEventListener('click', function(){
-    const result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
-});
+  document.getElementById('result').innerText = result;
+};
 </script>
-
-</body>
-</html>
