@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>일일 전도 활동 종합</title>
+<title>일일 전도 활동 종합 계산기</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
@@ -40,7 +40,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
     const text = document.getElementById('inputText').value;
     const numbers = [0,0,0,0,0,0,0,0];
     const nameMap = {};
-    const halfMap = {}; // .5 등장 횟수
+    const halfMap = {};
     const lines = text.split(/\r?\n/);
 
     lines.forEach((line, lineIndex) => {
@@ -48,25 +48,21 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         const parts = line.split('/');
         for(let i=2;i<=9;i++){
             if(parts[i]){
-                // 숫자 합산
                 const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
                 if(match) numbers[i-2] += parseFloat(match[0]);
 
-                // 이름 추출
                 const nameMatches = parts[i].match(/\(([^)]+)\)/g);
                 if(nameMatches){
                     nameMatches.forEach(raw => {
                         const names = raw.replace(/[()]/g,'').split(' ');
                         names.forEach(name => {
-                            // .5 체크
                             if(name.includes('.5')){
-                                if(!halfMap[name]) halfMap[name] = 0;
+                                if(!halfMap[name]) halfMap[name]=0;
                                 halfMap[name]++;
                             }
-
                             if(!nameMap[name]) nameMap[name] = {};
                             if(!nameMap[name][i]) nameMap[name][i] = new Set();
-                            nameMap[name][i].add(lineIndex); 
+                            nameMap[name][i].add(lineIndex);
                         });
                     });
                 }
@@ -76,7 +72,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
 
     const errors = [];
 
-    // 다른 줄, 다른 칸 체크 (간편화 메시지)
+    // 다른 줄, 다른 칸 체크
     for(let name in nameMap){
         const cols = Object.keys(nameMap[name]);
         for(let j=0;j<cols.length;j++){
@@ -92,21 +88,55 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         }
     }
 
-    // .5 체크: 한 번만 나오면 오류
+    // .5 체크
     for(let name in halfMap){
         if(halfMap[name] === 1){
             errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
         }
     }
 
-    // 소수점 처리
-    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
-    numbers[5] = Math.round(numbers[5]); // 상담따기
+    // 말씀따기 / 센터확답 처리
+    const specialCols = [8,9];
+    const specialResult = {};
+    specialCols.forEach(col => {
+        const nameCount = {};
+        for(let name in nameMap){
+            if(nameMap[name][col]){
+                if(!nameCount[name]) nameCount[name] = 0;
+                nameCount[name] += 1;
+            }
+        }
+        const display = [];
+        for(let name in nameCount){
+            if(nameCount[name] > 1){
+                display.push(name+'1');
+            } else {
+                display.push(name+'1');
+            }
+        }
+        specialResult[col] = display.join(' ');
+    });
+
+    // 숫자 처리
+    numbers[4] = Math.floor(numbers[4]);
+    numbers[5] = Math.round(numbers[5]);
     for(let i=0;i<numbers.length;i++){
         if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
     }
 
-    const resultText = errors.length>0 ? "오류: "+errors.join('; ') : '종합/' + numbers.join('/');
+    let resultText;
+    if(errors.length>0){
+        resultText = "오류: " + errors.join('; ');
+    } else {
+        // 종합 텍스트 구성
+        resultText = '종합/';
+        for(let i=0;i<=6;i++){
+            resultText += numbers[i] + '/';
+        }
+        resultText += specialResult[8] ? specialResult[8] + '/' : '0/';
+        resultText += specialResult[9] ? specialResult[9] : '0';
+    }
+
     document.getElementById('result').innerText = resultText;
 });
 
