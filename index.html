@@ -28,6 +28,7 @@ function getColName(i){
           "단계향상 만남","상담따기","말씀따기","센터확답"][i-2];
 }
 
+/* ✅ 충돌 허용 그룹 */
 const ALLOWED = ["당일 찾기","당일 섭외","당일 만남"];
 
 document.getElementById("calculateBtn").onclick = () => {
@@ -57,8 +58,11 @@ document.getElementById("calculateBtn").onclick = () => {
         const name = n.replace(/[0-9.]/g,"");
         const col = getColName(i);
 
-        if(!nameToCols[name]) nameToCols[name] = new Set();
-        nameToCols[name].add(col);
+        /* ✅ 섭외자보유는 충돌 검사 제외 */
+        if(col !== "섭외자보유"){
+          if(!nameToCols[name]) nameToCols[name] = new Set();
+          nameToCols[name].add(col);
+        }
 
         if(n.includes(".5")){
           halfCount[name] = (halfCount[name]||0)+1;
@@ -67,7 +71,7 @@ document.getElementById("calculateBtn").onclick = () => {
     }
   });
 
-  /* ✅ 다른 칸 중복 오류 */
+  /* ✅ 충돌 오류 검사 */
   for(const name in nameToCols){
     const cols = [...nameToCols[name]];
     const illegal = cols.filter(c => !ALLOWED.includes(c));
@@ -83,14 +87,12 @@ document.getElementById("calculateBtn").onclick = () => {
     }
   }
 
-  /* ❌ 오류 있으면 종합 중단 */
   if(errors.length){
     document.getElementById("result").innerText =
       "오류: " + errors.join("; ");
     return;
   }
 
-  /* ✅ 종합 (정수만) */
   const result = sums.map(n => Math.round(n)).join("/");
   document.getElementById("result").innerText = "종합/" + result;
 };
