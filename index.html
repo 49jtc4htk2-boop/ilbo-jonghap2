@@ -1,7 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>일일 전도 보고 분석기</title>
+</head>
+<body>
+
+<h2>일일 전도 활동 보고</h2>
+
+<textarea id="input" rows="20" cols="80" placeholder="여기에 보고 텍스트 붙여넣기"></textarea>
+<br><br>
+
+<button onclick="run()">분석</button>
+
+<pre id="output"></pre>
+
+<script>
 function analyzeReport(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // 컬럼 인덱스 정의
   const COLS = {
     FIND: 3,
     CAST: 4,
@@ -12,118 +29,73 @@ function analyzeReport(text) {
     CENTER: 9
   };
 
-  // 종합 합계
   const sum = Array(8).fill(0);
-
-  // 이름 → { colSet, halfCount }
   const nameMap = {};
-
-  // 말씀 / 센터 이름 누적
   const wordMap = {};
   const centerMap = {};
 
-  // 헤더 이후부터 파싱
-  for (let idx = 1; idx < lines.length; idx++) {
-    const line = lines[idx];
-    if (line.startsWith('종합')) break;
-    if (!line.includes('/')) continue;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].startsWith('종합')) break;
+    const cols = lines[i].split('/');
 
-    const cols = line.split('/');
-
-    cols.forEach((cell, colIdx) => {
+    cols.forEach((cell, idx) => {
       if (!cell || cell === '0') return;
 
-      // 숫자 합계
       const num = parseFloat(cell);
-      if (!isNaN(num) && colIdx >= 2 && colIdx <= 9) {
-        sum[colIdx - 2] += num;
+      if (!isNaN(num) && idx >= 2 && idx <= 9) {
+        sum[idx - 2] += num;
       }
 
-      // 괄호 안 이름 파싱
       const matches = cell.match(/\(([^)]+)\)/g);
       if (!matches) return;
 
       matches.forEach(m => {
-        m.replace(/[()]/g, '')
-          .split(' ')
-          .forEach(n => {
-            const r = n.match(/^(.+?)(\d+(\.\d+)?)$/);
-            if (!r) return;
+        m.replace(/[()]/g, '').split(' ').forEach(n => {
+          const r = n.match(/^(.+?)(\d+(\.\d+)?)$/);
+          if (!r) return;
 
-            const name = r[1];
-            const val = parseFloat(r[2]);
+          const name = r[1];
+          const val = parseFloat(r[2]);
 
-            // 이름 공통 기록
-            if (!nameMap[name]) {
-              nameMap[name] = { cols: new Set(), half: 0 };
-            }
-            nameMap[name].cols.add(colIdx);
-            if (val === 0.5) nameMap[name].half++;
+          if (!nameMap[name]) nameMap[name] = { cols: new Set(), half: 0 };
+          nameMap[name].cols.add(idx);
+          if (val === 0.5) nameMap[name].half++;
 
-            // 말씀 / 센터 누적
-            if (colIdx === COLS.WORD) {
-              wordMap[name] = (wordMap[name] || 0) + val;
-            }
-            if (colIdx === COLS.CENTER) {
-              centerMap[name] = (centerMap[name] || 0) + val;
-            }
-          });
+          if (idx === COLS.WORD) wordMap[name] = (wordMap[name] || 0) + val;
+          if (idx === COLS.CENTER) centerMap[name] = (centerMap[name] || 0) + val;
+        });
       });
     });
   }
 
   const errors = [];
 
-  // ✅ 규칙 1: .5 가 단독으로 1번만 나온 경우 질문
   Object.entries(nameMap).forEach(([name, info]) => {
     if (info.half === 1) {
-      errors.push(
-        `"${name}.5" 는 한 번만 기록되었습니다. 어떤 구역과 함께 하셨나요?`
-      );
+      errors.push(`"${name}.5" 는 한 번만 기록되었습니다. 어떤 구역과 함께 하셨나요?`);
     }
   });
 
-  // ✅ 규칙 2: 다른 줄 + 다른 칸 등장 (허용된 경우 제외)
-  Object.entries(nameMap).forEach(([name, info]) => {
-    if (info.cols.size <= 1) return;
-
-    const cols = [...info.cols];
-    const allowed = new Set([COLS.FIND, COLS.CAST, COLS.CENTER]);
-
-    const invalid = cols.some(c => !allowed.has(c));
-    if (invalid) {
-      errors.push(
-        `"${name}" 중복 기록 (칸 다름)`
-      );
-    }
-  });
-
-  // ✅ 오류 있으면 종합 미출력
   if (errors.length) {
     return '오류:\n' + errors.join('\n');
   }
 
-  // ✅ 말씀 / 센터 이름 문자열 생성
   const buildNames = map =>
-    Object.entries(map)
-      .map(([n, v]) => `${n}${Number.isInteger(v) ? v : v}`)
-      .join(' ');
+    Object.entries(map).map(([n, v]) => `${n}${v}`).join(' ');
 
-  // ✅ 종합 결과
-  const result =
-    `종합/` +
-    sum
-      .slice(0, 6)
-      .map(n => Math.round(n))
-      .join('/') +
-    `/${Math.round(sum[6])}${
-      Object.keys(wordMap).length ? `(${buildNames(wordMap)})` : ''
-    }` +
-    `/${Math.round(sum[7])}${
-      Object.keys(centerMap).length ? `(${buildNames(centerMap)})` : ''
-    }`;
-
-  return result;
+  return (
+    '종합/' +
+    sum.slice(0, 6).map(n => Math.round(n)).join('/') +
+    `/${Math.round(sum[6])}${Object.keys(wordMap).length ? `(${buildNames(wordMap)})` : ''}` +
+    `/${Math.round(sum[7])}${Object.keys(centerMap).length ? `(${buildNames(centerMap)})` : ''}`
+  );
 }
-const output = analyzeReport(입력텍스트);
-console.log(output);
+
+function run() {
+  const text = document.getElementById('input').value;
+  document.getElementById('output').textContent = analyzeReport(text);
+}
+</script>
+
+</body>
+</html>
