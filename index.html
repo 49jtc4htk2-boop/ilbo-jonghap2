@@ -38,7 +38,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         // 3번째부터 10번째 항목 숫자만 추출
         for(let i=2; i<=9; i++){
             if(parts[i]){
-                // / 바로 옆 숫자만, 괄호 안 무시
+                // / 바로 옆 숫자만, 괄호 안 숫자 무시
                 let match = parts[i].match(/^\d+(\.\d+)?/);
                 if(match){
                     numbers[i-2] += parseFloat(match[0]);
@@ -47,7 +47,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         }
     });
 
-    // 합산 후 정수화 (소수는 반올림)
+    // 합산 후 정수화
     numbers = numbers.map(n => Math.round(n));
 
     document.getElementById('result').innerText = '종합/' + numbers.join('/');
