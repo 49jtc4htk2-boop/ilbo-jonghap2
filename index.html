@@ -80,41 +80,4 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
     for(let name in nameMap){
         const cols = Object.keys(nameMap[name]);
         for(let j=0;j<cols.length;j++){
-            for(let k=j+1;k<cols.length;k++){
-                const colA = cols[j];
-                const colB = cols[k];
-                const linesA = Array.from(nameMap[name][colA]);
-                const linesB = Array.from(nameMap[name][colB]);
-                if(linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))){
-                    errors.push(`"${name}"가 다른 줄에서 서로 다른 칸에 등장: ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
-                }
-            }
-        }
-    }
-
-    // .5 체크: 한 번만 나오면 오류
-    for(let name in halfMap){
-        if(halfMap[name] === 1){
-            errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
-        }
-    }
-
-    // 소수점 처리
-    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
-    numbers[5] = Math.round(numbers[5]); // 상담따기
-    for(let i=0;i<numbers.length;i++){
-        if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
-    }
-
-    const resultText = errors.length>0 ? "오류: "+errors.join('; ') : '종합/' + numbers.join('/');
-    document.getElementById('result').innerText = resultText;
-});
-
-document.getElementById('copyBtn').addEventListener('click', function(){
-    const result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
-});
-</script>
-
-</body>
-</html>
+            for(let k=j+1;
