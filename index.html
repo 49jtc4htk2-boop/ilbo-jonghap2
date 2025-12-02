@@ -50,7 +50,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
                         namePart.split(/\s+/).forEach(n=>{
                             if(n){
                                 // 이름에 숫자 있는 경우 합산
-                                let numMatch = n.match(/(\D+)([\d\.]*)/);
+                                let numMatch = n.match(/^([^\d]+)([\d\.]*)$/);
                                 if(numMatch){
                                     let name = numMatch[1];
                                     let nval = parseFloat(numMatch[2]) || 1;
@@ -76,7 +76,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         if(idx===6||idx===7){
             if(num>0){
                 let nameStr = Object.entries(nameMaps[idx])
-                    .map(([name,val])=>name + (val%1===0? val : val))
+                    .map(([name,val]) => name + (val%1===0? val : (Math.round(val*10)/10))) // 소수점 1자리까지
                     .join(' ');
                 return num+'('+nameStr+')';
             }else{
@@ -99,3 +99,4 @@ document.getElementById('copyBtn').addEventListener('click', function(){
 
 </body>
 </html>
+
