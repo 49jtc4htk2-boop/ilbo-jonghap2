@@ -1,56 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>전도 일보 계산기</title>
+<style>
+textarea { width:100%; height:320px; }
+button { padding:10px 20px; margin-top:10px; }
+#result { white-space:pre-wrap; font-weight:bold; margin-top:15px; }
+</style>
+</head>
+<body>
+
+<textarea id="inputText" placeholder="일보를 그대로 붙여넣으세요"></textarea>
+<br>
+<button id="calculateBtn">종합 계산</button>
+
+<div id="result"></div>
+
 <script>
-function getColName(index){
-  return ["","",
-    "섭외자보유","당일 찾기","당일 섭외","당일 만남",
-    "단계향상 만남","상담따기","말씀따기","센터확답"
-  ][index];
+function colName(i){
+  return ["섭외자보유","당일 찾기","당일 섭외","당일 만남",
+          "단계향상 만남","상담따기","말씀따기","센터확답"][i];
 }
 
-document.getElementById('calculateBtn').onclick = () => {
-  const text = document.getElementById('inputText').value;
+document.getElementById("calculateBtn").onclick = () => {
+  const text = document.getElementById("inputText").value;
   const lines = text.split(/\r?\n/);
 
-  const sum = [0,0,0,0,0,0,0,0];
+  const sums = Array(8).fill(0);
+  const nameCols = {};
+  const halfCount = {};
   const wordMap = {};
   const centerMap = {};
-  const namePos = {};
-  const halfCount = {};
   const errors = [];
 
-  lines.forEach((line, lineIdx) => {
+  lines.forEach((line, rowIdx) => {
     if (!line.match(/^\d+\//)) return;
-    const cols = line.split('/');
+    const cols = line.split("/");
 
     for (let i = 2; i <= 9; i++) {
       if (!cols[i]) continue;
 
-      // 숫자 합산
       const num = parseFloat(cols[i]);
-      if (!isNaN(num)) sum[i-2] += num;
+      if (!isNaN(num)) sums[i-2] += num;
 
-      // 괄호 안 처리
       const matches = cols[i].match(/\(([^)]+)\)/g);
       if (!matches) continue;
 
       matches.forEach(m => {
-        m.replace(/[()]/g,'').split(' ').forEach(n => {
-          const match = n.match(/^(.+?)(\d+(\.\d+)?)$/);
-          if (!match) return;
+        m.replace(/[()]/g,"").split(" ").forEach(x => {
+          const r = x.match(/^(.+?)(\d+(\.\d+)?)$/);
+          if (!r) return;
 
-          const name = match[1];
-          const val = parseFloat(match[2]);
+          const name = r[1];
+          const val = parseFloat(r[2]);
 
-          // 위치 기록 (다른 줄, 다른 칸 오류용)
-          namePos[name] ??= {};
-          namePos[name][i] ??= new Set();
-          namePos[name][i].add(lineIdx);
+          nameCols[name] ??= {};
+          nameCols[name][i] ??= new Set();
+          nameCols[name][i].add(rowIdx);
 
-          // .5 단독 체크
-          if (val === 0.5) {
-            halfCount[name] = (halfCount[name]||0)+1;
-          }
+          if (val === 0.5) halfCount[name] = (halfCount[name]||0)+1;
 
-          // 말씀따기 / 센터확답 누적
           if (i === 8) wordMap[name] = (wordMap[name]||0)+val;
           if (i === 9) centerMap[name] = (centerMap[name]||0)+val;
         });
@@ -58,35 +68,39 @@ document.getElementById('calculateBtn').onclick = () => {
     }
   });
 
-  // 다른 줄 다른 칸 오류
-  Object.entries(namePos).forEach(([name, cols])=>{
+  Object.entries(nameCols).forEach(([name, cols]) => {
     const keys = Object.keys(cols);
     if (keys.length > 1) {
-      errors.push(`"${name}": ${getColName(keys[0])} vs ${getColName(keys[1])}`);
+      errors.push(`"${name}" : ${colName(keys[0]-2)} vs ${colName(keys[1]-2)}`);
     }
   });
 
-  // .5 단독 오류
-  Object.entries(halfCount).forEach(([n,c])=>{
-    if (c === 1) errors.push(`"${n}.5"는 어떤 구역과 함께 하셨나요?`);
+  Object.entries(halfCount).forEach(([name, c]) => {
+    if (c === 1) {
+      errors.push(`"${name}.5"는 어떤 구역과 함께 하셨나요?`);
+    }
   });
 
   if (errors.length) {
-    document.getElementById('result').innerText = "오류: " + errors.join('; ');
+    document.getElementById("result").innerText =
+      "오류:\n" + errors.join("\n");
     return;
   }
 
-  // 이름 문자열 생성 함수
-  const nameText = map =>
+  const formatNames = map =>
     Object.entries(map)
-      .map(([n,v])=>`${n}${Number.isInteger(v)?v:v}`)
-      .join(' ');
+      .map(([n,v]) => n + (Number.isInteger(v) ? v : v))
+      .join(" ");
 
   const result =
-    `종합/${sum.slice(0,6).map(n=>Math.round(n)).join('/')}/` +
-    `${Math.round(sum[6])}${Object.keys(wordMap).length?`(${nameText(wordMap)})`:''}/` +
-    `${Math.round(sum[7])}${Object.keys(centerMap).length?`(${nameText(centerMap)})`:''}`;
+    "종합/" +
+    sums.slice(0,6).map(n => Math.round(n)).join("/") + "/" +
+    Math.round(sums[6]) + (Object.keys(wordMap).length ? `(${formatNames(wordMap)})` : "") + "/" +
+    Math.round(sums[7]) + (Object.keys(centerMap).length ? `(${formatNames(centerMap)})` : "");
 
-  document.getElementById('result').innerText = result;
+  document.getElementById("result").innerText = result;
 };
 </script>
+
+</body>
+</html>
