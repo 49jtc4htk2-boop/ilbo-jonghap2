@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>일일 전도 활동 종합 계산기</title>
+<title>일일 전도 활동 종합</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
 h2 { text-align: center; margin-bottom: 10px; }
 textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
-button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
-button:hover { background: #45a049; }
+button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #CC99FF; color: white; }
+button:hover { background: #FFCCFF; }
 #result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
 </style>
 </head>
@@ -76,8 +76,45 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
 
     const errors = [];
 
-    // 다른 줄, 다른 칸 체크
+    // 다른 줄, 다른 칸 체크 (간편화 메시지)
     for(let name in nameMap){
         const cols = Object.keys(nameMap[name]);
         for(let j=0;j<cols.length;j++){
-            for(let k=j+1;
+            for(let k=j+1;k<cols.length;k++){
+                const colA = cols[j];
+                const colB = cols[k];
+                const linesA = Array.from(nameMap[name][colA]);
+                const linesB = Array.from(nameMap[name][colB]);
+                if(linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))){
+                    errors.push(`"${name}": ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
+                }
+            }
+        }
+    }
+
+    // .5 체크: 한 번만 나오면 오류
+    for(let name in halfMap){
+        if(halfMap[name] === 1){
+            errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
+        }
+    }
+
+    // 소수점 처리
+    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
+    numbers[5] = Math.round(numbers[5]); // 상담따기
+    for(let i=0;i<numbers.length;i++){
+        if(i!==4 && i!==5) numbers[i] = Math.round(numbers[i]);
+    }
+
+    const resultText = errors.length>0 ? "오류: "+errors.join('; ') : '종합/' + numbers.join('/');
+    document.getElementById('result').innerText = resultText;
+});
+
+document.getElementById('copyBtn').addEventListener('click', function(){
+    const result = document.getElementById('result').innerText;
+    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
+});
+</script>
+
+</body>
+</html>
