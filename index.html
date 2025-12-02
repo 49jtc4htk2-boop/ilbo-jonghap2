@@ -21,40 +21,76 @@ button { font-size:16px; padding:10px 15px; margin:5px 0; width:100%; cursor:poi
 <button id="copyBtn">결과 복사</button>
 
 <script>
-// 종합 계산
 document.getElementById('calculateBtn').addEventListener('click', function() {
     let text = document.getElementById('inputText').value;
     let numbers = [0,0,0,0,0,0,0,0]; // 8개 항목
+    let nameMaps = [{},{},{},{},{},{},{},{}]; // 말씀따기/센터확답 이름+숫자 저장용
 
-    // 줄 단위로 나누기
     let lines = text.split(/\r?\n/);
 
     lines.forEach(line => {
-        // 숫자로 시작하는 줄만 처리
         if(!line.match(/^\d+\//)) return;
-
         let parts = line.split('/');
 
-        // 3번째부터 10번째 항목 숫자만 추출
-        for(let i=2; i<=9; i++){
+        for(let i=2;i<=9;i++){
             if(parts[i]){
-                // / 바로 옆 숫자만, 괄호 안 무시
+                // / 바로 옆 숫자만
                 let match = parts[i].match(/^\d+(\.\d+)?/);
+                let val = 0;
                 if(match){
-                    numbers[i-2] += parseFloat(match[0]);
+                    val = parseFloat(match[0]);
+                    numbers[i-2] += val;
+                }
+
+                // 말씀따기(6, index=6) / 센터확답(7, index=7)
+                if(i===7 || i===8){
+                    let namePart = parts[i].replace(/^\d+(\.\d+)?/, '').trim();
+                    if(namePart.length>0){
+                        // 공백으로 여러 이름
+                        namePart.split(/\s+/).forEach(n=>{
+                            if(n){
+                                // 이름에 숫자 있는 경우 합산
+                                let numMatch = n.match(/(\D+)([\d\.]*)/);
+                                if(numMatch){
+                                    let name = numMatch[1];
+                                    let nval = parseFloat(numMatch[2]) || 1;
+                                    if(nameMaps[i-2][name]){
+                                        nameMaps[i-2][name] += nval;
+                                    } else {
+                                        nameMaps[i-2][name] = nval;
+                                    }
+                                }
+                            }
+                        });
+                    }
                 }
             }
         }
     });
 
-    // 합산 후 정수화 (소수는 반올림)
-    numbers = numbers.map(n => Math.round(n));
+    // 정수화 (말씀따기/센터확답 제외)
+    numbers = numbers.map((n,idx) => (idx===6||idx===7)? n : Math.round(n));
 
-    document.getElementById('result').innerText = '종합/' + numbers.join('/');
+    // 결과 문자열 만들기
+    let resultArr = numbers.map((num, idx)=>{
+        if(idx===6||idx===7){
+            if(num>0){
+                let nameStr = Object.entries(nameMaps[idx])
+                    .map(([name,val])=>name + (val%1===0? val : val))
+                    .join(' ');
+                return num+'('+nameStr+')';
+            }else{
+                return '0';
+            }
+        }else{
+            return num;
+        }
+    });
+
+    document.getElementById('result').innerText = '종합/' + resultArr.join('/');
 });
 
-// 복사 기능
-document.getElementById('copyBtn').addEventListener('click', function() {
+document.getElementById('copyBtn').addEventListener('click', function(){
     let result = document.getElementById('result').innerText;
     navigator.clipboard.writeText(result);
     alert('결과 복사 완료!');
