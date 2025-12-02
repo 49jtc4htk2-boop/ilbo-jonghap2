@@ -2,44 +2,40 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>일일 전도 활동 종합</title>
+<title>일일 전도 활동 종합 계산기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { font-family: Arial, sans-serif; padding: 10px; background:#f5f5f5; }
-h2 { text-align:center; }
-textarea { width: 100%; height: 250px; font-size:16px; margin-bottom:10px; padding:10px; }
-button { font-size:16px; padding:10px 15px; margin:5px 0; width:100%; cursor:pointer; }
-#result { font-size:18px; margin-top:10px; font-weight:bold; background:#fff; padding:10px; border-radius:5px; word-break:break-all; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
+h2 { text-align: center; margin-bottom: 10px; }
+textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
+button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
+button:hover { background: #45a049; }
+#result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
 </style>
 </head>
 <body>
 
-<h2>일일 전도 활동 종합</h2>
+<h2>일일 전도 활동 종합 계산기</h2>
 
-<textarea id="inputText" placeholder="일보 텍스트 붙여넣기"></textarea>
+<textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
 <button id="calculateBtn">종합하기</button>
 <div id="result"></div>
 <button id="copyBtn">결과 복사</button>
 
 <script>
-// 종합 계산
 document.getElementById('calculateBtn').addEventListener('click', function() {
-    let text = document.getElementById('inputText').value;
-    let numbers = [0,0,0,0,0,0,0,0]; // 8개 항목
+    const text = document.getElementById('inputText').value;
+    const numbers = [0,0,0,0,0,0,0,0]; // 8개 항목
 
-    // 줄 단위로 나누기
-    let lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/);
 
     lines.forEach(line => {
-        // 숫자로 시작하는 줄만 처리
-        if(!line.match(/^\d+\//)) return;
-
-        let parts = line.split('/');
-
-        // 3번째부터 10번째 항목 숫자만 추출
-        for(let i=2; i<=9; i++){
+        if(!line.match(/^\d+\//)) return; // 숫자로 시작하는 줄만
+        const parts = line.split('/');
+        for(let i=2; i<=9; i++){ // 3~10번째 항목
             if(parts[i]){
                 // / 바로 옆 숫자만, 괄호 안 숫자 무시
-                let match = parts[i].match(/^\d+(\.\d+)?/);
+                const match = parts[i].match(/^\d+(\.\d+)?/);
                 if(match){
                     numbers[i-2] += parseFloat(match[0]);
                 }
@@ -47,19 +43,17 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         }
     });
 
-    // 합산 후 정수화
-    numbers = numbers.map(n => Math.round(n));
-
     document.getElementById('result').innerText = '종합/' + numbers.join('/');
 });
 
-// 복사 기능
 document.getElementById('copyBtn').addEventListener('click', function() {
-    let result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result);
-    alert('결과 복사 완료!');
+    const result = document.getElementById('result').innerText;
+    navigator.clipboard.writeText(result).then(() => {
+        alert('결과가 클립보드에 복사되었습니다!');
+    });
 });
 </script>
 
 </body>
 </html>
+
