@@ -5,19 +5,28 @@
 <title>일일 전도 활동 종합 계산기</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { font-family: Arial, sans-serif; background:#f5f5f5; padding:10px; }
-h2 { text-align:center; margin-bottom:10px; }
-textarea { width:100%; height:250px; font-size:16px; padding:10px; margin-bottom:10px; }
-button { width:100%; font-size:16px; padding:10px; margin:5px 0;
-  border:none; border-radius:5px; background:#0081ff; color:white; }
-button:hover { background:#0081ff; }
-#result { margin-top:10px; font-weight:bold; font-size:18px;
-  background:#fff; padding:10px; border-radius:5px; word-break:break-word; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
+h2 { text-align: center; margin-bottom: 10px; }
+textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
+button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
+button:hover { background: #45a049; }
+#result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
+#instructions { background:#e0f7fa; padding:10px; border-radius:5px; margin-bottom:10px; font-size:14px; line-height:1.5; }
 </style>
 </head>
 <body>
 
 <h2>일일 전도 활동 종합 계산기</h2>
+
+<div id="instructions">
+<strong>사용 방법:</strong><br>
+1. 위의 전도일보 텍스트를 그대로 복사해서 아래 입력란에 붙여넣으세요.<br>
+2. "종합하기" 버튼을 누르면 자동으로 합계와 오류 체크를 수행합니다.<br>
+3. 오류가 있으면 오류 메시지가 표시되며, 정상일 경우 "종합/숫자..." 형식으로 결과가 나타납니다.<br>
+4. 말씀따기, 센터확답 칸은 종합 결과 옆에 이름과 합산 숫자가 표시됩니다.<br>
+5. .5 단위로 기록된 이름이 단독 등장하면, 안내 메시지가 표시됩니다.<br>
+6. 결과를 "결과 복사" 버튼으로 쉽게 클립보드에 복사할 수 있습니다.
+</div>
 
 <textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
 <button id="calculateBtn">종합하기</button>
@@ -75,7 +84,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
 
     const errors = [];
 
-    // 다른 줄, 다른 칸 체크 (섭외자보유는 제외)
+    // 다른 줄, 다른 칸 체크 (섭외자보유 제외)
     for(let name in nameMap){
         const cols = Object.keys(nameMap[name]).filter(c => parseInt(c) !== 2);
         for(let j=0;j<cols.length;j++){
@@ -84,7 +93,6 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
                 const colB = cols[k];
                 const linesA = Array.from(nameMap[name][colA]);
                 const linesB = Array.from(nameMap[name][colB]);
-                // 같은 이름이 다른 줄, 다른 칸에 등장해도 정상 규칙이면 무시
                 const abnormal = (linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))) 
                                 && !(colA==3 && colB==4) && !(colA==4 && colB==3) && !(colA==5 && colB==6) && !(colA==6 && colB==5);
                 if(abnormal){
@@ -94,7 +102,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
         }
     }
 
-    // .5 체크: 한 번만 나오면 오류
+    // .5 체크
     for(let name in halfMap){
         if(halfMap[name] === 1){
             errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
@@ -102,7 +110,7 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
     }
 
     // 말씀따기/센터확답 이름 합산
-    const extraCols = [7,8]; // index in numbers
+    const extraCols = [8,9]; // index in numbers
     const extraNames = {};
     lines.forEach((line) => {
         const parts = line.split('/');
@@ -147,6 +155,11 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
     }
 
     document.getElementById('result').innerText = resultText;
+});
+
+document.getElementById('copyBtn').addEventListener('click', function(){
+    const result = document.getElementById('result').innerText;
+    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
 });
 </script>
 
