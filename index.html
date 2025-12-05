@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>일일 전도 활동 자동종합계산기</title>
+  <title>일일 전도 활동 자동종합</title>
   <style>
     :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,'Noto Sans KR',Arial;}
     body{max-width:980px;margin:20px auto;padding:18px;background:#fbfbfb;border:1px solid #eee;border-radius:10px}
@@ -20,10 +20,10 @@
   </style>
 </head>
 <body>
-  <h1>🌳 일일 전도 활동 자동종합계산기 (index.html)</h1>
+  <h1>🌳 일일 전도 활동 자동 종합 🌳 (index.html)</h1>
   <p class="hint">입력 텍스트 블록(전체)을 붙여넣고 <strong>계산하기</strong>를 누르면 유효성 검사 후 종합 결과를 만들어 줍니다. 오류가 있으면 오류 목록만 표시됩니다.</p>
 
-  <label for="input">원본 텍스트 붙여넣기</label>
+  <label for="input">일보양식 붙여넣기</label>
   <textarea id="input" placeholder="여기에 전체 보고 텍스트 붙여넣기"></textarea>
 
   <div class="row">
@@ -314,9 +314,9 @@
   document.getElementById('copy').addEventListener('click', ()=>{
     const txt = document.getElementById('result').textContent;
     navigator.clipboard.writeText(txt).then(()=>{
-      alert('결과가 클립보드에 복사되었습니다.');
+      alert('결과가 복사되었습니다.');
     }).catch(err=>{
-      alert('복사에 실패했습니다. 브라우저 권한을 확인하세요.');
+      alert('복사에 실패했습니다. 수동으로 복사해주세요.');
     });
   });
 
