@@ -25,7 +25,8 @@
 <script>
 function calculate() {
     const inputText = document.getElementById('input').value;
-    const lines = inputText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('🌳') && !l.startsWith('종합') && !l.startsWith('🤩') && !l.startsWith('1)') && !l.startsWith('2)'));
+    const lines = inputText.split('\n').map(l => l.trim())
+        .filter(l => l && !l.startsWith('🌳') && !l.startsWith('종합') && !l.startsWith('🤩') && !l.startsWith('1)') && !l.startsWith('2)'));
 
     const columns = ['구역장','섭외자보유','당일 찾기','당일 섭외','당일 만남','당일 단계향상 만남','상담따기','말씀따기','센터확답'];
     const errors = [];
@@ -43,23 +44,23 @@ function calculate() {
     const nameTracker = {}; 
     const singleHalfTracker = {}; 
 
-    lines.forEach((line) => {
+    lines.forEach(line => {
         const parts = line.split('/');
         const zone = parts[0];
 
-        columns.forEach((col, cIdx) => {
-            const cell = parts[cIdx + 1];
+        columns.forEach((col, idx) => {
+            const cell = parts[idx + 1];
             if (!cell) return;
 
             const match = cell.match(/^([\d.]+)\((.*)\)$/);
-            if (!match) return; 
+            if (!match) return;
 
             const num = parseFloat(match[1]);
             const names = match[2].split(' ').filter(n => n);
 
-            // 합계 검증 (괄호 안 숫자 합)
+            // 합계 검증 (섭외자보유 제외)
             if (col !== '섭외자보유') {
-                const sum = names.reduce((acc,n) => {
+                const sum = names.reduce((acc, n) => {
                     const m = n.match(/(\d+(\.\d+)?)$/);
                     return acc + (m ? parseFloat(m[1]) : 1);
                 }, 0);
@@ -68,7 +69,7 @@ function calculate() {
                 }
             }
 
-            // 이름별 체크
+            // 이름 체크
             names.forEach(n => {
                 const valMatch = n.match(/(\d+(\.\d+)?)$/);
                 const val = valMatch ? parseFloat(valMatch[1]) : 1;
@@ -81,8 +82,8 @@ function calculate() {
                 if (!nameTracker[n]) nameTracker[n] = [];
                 const prev = nameTracker[n].find(e => {
                     if (e.zone !== zone) return true; // 다른 구역 → 오류
-                    if (e.col === col) return false; // 같은 칸 → 허용
-                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기↔섭외 → 허용
+                    if (e.col === col) return false; // 같은 구역, 같은 칸 → 허용
+                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기↔섭외 허용
                     return true; // 같은 구역 다른 칸 → 오류
                 });
                 if (prev && col !== '섭외자보유') {
@@ -120,7 +121,7 @@ function calculate() {
         return;
     }
 
-    // 정상 종합 계산 출력
+    // 정상 종합 출력
     const 말씀Sum = Object.values(summary['말씀따기']).reduce((a,b)=>a+b,0);
     const 말씀Names = Object.entries(summary['말씀따기']).map(([k,v])=>`${k}${v}`).join(' ');
     const 센터Sum = Object.values(summary['센터확답']).reduce((a,b)=>a+b,0);
