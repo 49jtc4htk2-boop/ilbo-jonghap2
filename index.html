@@ -16,7 +16,7 @@
 
 <h2>🌳 일일 전도 활동 종합 계산기 🌳</h2>
 
-<textarea id="input" placeholder="여기에 구역 데이터를 붙여넣기"></textarea><br>
+<textarea id="input" placeholder="여기에 일보를 붙여넣기"></textarea><br>
 <button onclick="calculate()">종합 계산</button>
 <button onclick="copyResult()">결과 복사</button>
 
@@ -74,7 +74,11 @@ function calculate() {
                 }
 
                 if (!nameTracker[n]) nameTracker[n] = [];
-                const prev = nameTracker[n].find(e => e.zone !== zone && e.col !== col);
+                const prev = nameTracker[n].find(e => {
+                    if (e.zone !== zone) return true; // 다른 구역이면 오류
+                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 같은 구역 당일 찾기/당일 섭외 중복 허용
+                    return e.col !== col; // 같은 구역 다른 칸이면 오류
+                });
                 if (prev && col !== '섭외자보유') {
                     errors.push(`${n}: ${prev.col} vs ${col} 어디인가요`);
                 }
@@ -126,7 +130,7 @@ function copyResult() {
     const resultDiv = document.getElementById('result');
     if (!resultDiv.innerText) return;
     navigator.clipboard.writeText(resultDiv.innerText).then(() => {
-        alert('결과가 복사되었습니다!');
+        alert('✅ 결과가 복사되었습니다!');
     });
 }
 </script>
