@@ -11,22 +11,11 @@ textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bo
 button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
 button:hover { background: #45a049; }
 #result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
-#instructions { background:#e0f7fa; padding:10px; border-radius:5px; margin-bottom:10px; font-size:14px; line-height:1.5; }
 </style>
 </head>
 <body>
 
 <h2>일일 전도 활동 종합 계산기</h2>
-
-<div id="instructions">
-<strong>사용 방법:</strong><br>
-1. 위의 전도일보 텍스트를 그대로 복사해서 아래 입력란에 붙여넣으세요.<br>
-2. "종합하기" 버튼을 누르면 자동으로 합계와 오류 체크를 수행합니다.<br>
-3. 오류가 있으면 오류 메시지가 표시되며, 정상일 경우 "종합/숫자..." 형식으로 결과가 나타납니다.<br>
-4. 말씀따기, 센터확답 칸은 종합 결과 옆에 이름과 합산 숫자가 표시됩니다.<br>
-5. .5 단위로 기록된 이름이 단독 등장하면, 안내 메시지가 표시됩니다.<br>
-6. 결과를 "결과 복사" 버튼으로 쉽게 클립보드에 복사할 수 있습니다.
-</div>
 
 <textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
 <button id="calculateBtn">종합하기</button>
@@ -52,25 +41,43 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
     const numbers = [0,0,0,0,0,0,0,0];
     const nameMap = {};
     const halfMap = {};
+    const columnErrors = [];
     const lines = text.split(/\r?\n/);
 
     lines.forEach((line, lineIndex) => {
         if(!line.match(/^\d+\//)) return;
+
         const parts = line.split('/');
+
+        // ✅ 칸 부족 체크 (총 10칸 필요)
+        if(parts.length < 10){
+            columnErrors.push(`${lineIndex + 1}번 줄 — 칸 부족 (${parts.length}/10)`);
+            return;
+        }
+
         for(let i=2;i<=9;i++){
             if(parts[i]){
+                // 숫자 합산
                 const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
-                if(match) numbers[i-2] += parseFloat(match[0]);
+                if(match) {
+                    numbers[i-2] += parseFloat(match[0]);
+                }
 
+                // 이름 추출
                 const nameMatches = parts[i].match(/\(([^)]+)\)/g);
                 if(nameMatches){
                     nameMatches.forEach(raw => {
                         const names = raw.replace(/[()]/g,'').split(' ');
                         names.forEach(name => {
+
+                            // ✅ .5 체크
                             if(name.includes('.5')){
                                 if(!halfMap[name]) halfMap[name] = 0;
                                 halfMap[name]++;
                             }
+
+                            // ✅ 섭외자보유(index=2)는 충돌 체크 제외
+                            if(i === 2) return;
 
                             if(!nameMap[name]) nameMap[name] = {};
                             if(!nameMap[name][i]) nameMap[name][i] = new Set();
@@ -84,82 +91,59 @@ document.getElementById('calculateBtn').addEventListener('click', function() {
 
     const errors = [];
 
-    // 다른 줄, 다른 칸 체크 (섭외자보유 제외)
+    // ✅ 다른 칸 중복 충돌 체크 (섭외자보유 제외)
     for(let name in nameMap){
-        const cols = Object.keys(nameMap[name]).filter(c => parseInt(c) !== 2);
+        const cols = Object.keys(nameMap[name]);
         for(let j=0;j<cols.length;j++){
             for(let k=j+1;k<cols.length;k++){
                 const colA = cols[j];
                 const colB = cols[k];
                 const linesA = Array.from(nameMap[name][colA]);
                 const linesB = Array.from(nameMap[name][colB]);
-                const abnormal = (linesA.some(a=>!linesB.includes(a)) || linesB.some(b=>!linesA.includes(b))) 
-                                && !(colA==3 && colB==4) && !(colA==4 && colB==3) && !(colA==5 && colB==6) && !(colA==6 && colB==5);
-                if(abnormal){
+
+                if(
+                    linesA.some(a => !linesB.includes(a)) ||
+                    linesB.some(b => !linesA.includes(b))
+                ){
                     errors.push(`"${name}": ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
                 }
             }
         }
     }
 
-    // .5 체크
+    // ✅ .5 단독 등장 오류
     for(let name in halfMap){
         if(halfMap[name] === 1){
             errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
         }
     }
 
-    // 말씀따기/센터확답 이름 합산
-    const extraCols = [8,9]; // index in numbers
-    const extraNames = {};
-    lines.forEach((line) => {
-        const parts = line.split('/');
-        extraCols.forEach((col, idx) => {
-            if(parts[col]){
-                const nameMatches = parts[col].match(/\(([^)]+)\)/g);
-                if(nameMatches){
-                    nameMatches.forEach(raw=>{
-                        const names = raw.replace(/[()]/g,'').split(' ');
-                        names.forEach(name=>{
-                            const valMatch = parts[col].trim().match(/^(\d+(\.\d+)?)/);
-                            const val = valMatch ? parseFloat(valMatch[0]) : 0;
-                            if(!extraNames[col]) extraNames[col] = {};
-                            if(!extraNames[col][name]) extraNames[col][name] = 0;
-                            extraNames[col][name] += val;
-                        });
-                    });
-                }
-            }
-        });
-    });
-
-    // 소수점 처리
+    // ✅ 소수점 처리 규칙
     numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
+    numbers[5] = Math.round(numbers[5]); // 상담따기
     for(let i=0;i<numbers.length;i++){
-        if(i!==4) numbers[i] = Math.round(numbers[i]);
+        if(i !== 4 && i !== 5){
+            numbers[i] = Math.round(numbers[i]);
+        }
     }
 
-    // 결과 문자열
-    let resultText = '';
-    if(errors.length>0){
-        resultText = '오류: '+errors.join('; ');
-    } else {
-        let resArr = numbers.map((num, idx)=>{
-            if(extraCols.includes(idx+2)){
-                const colNames = extraNames[idx+2];
-                const nameStr = Object.keys(colNames).map(n=>`${n}${colNames[n]}`).join(' ');
-                return `${num}(${nameStr})`;
-            } else return num;
-        });
-        resultText = '종합/' + resArr.join('/');
-    }
+    // ✅ 오류 우선 출력
+    let allErrors = [];
+    if(columnErrors.length > 0) allErrors = allErrors.concat(columnErrors);
+    if(errors.length > 0) allErrors = allErrors.concat(errors);
+
+    const resultText = allErrors.length > 0
+        ? "오류: " + allErrors.join('; ')
+        : '종합/' + numbers.join('/');
 
     document.getElementById('result').innerText = resultText;
 });
 
 document.getElementById('copyBtn').addEventListener('click', function(){
     const result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result).then(()=>{ alert('결과가 클립보드에 복사되었습니다!'); });
+    navigator.clipboard.writeText(result).then(()=>{
+        alert('결과가 클립보드에 복사되었습니다!');
+    });
 });
 </script>
 
