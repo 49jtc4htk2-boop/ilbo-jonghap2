@@ -1,126 +1,359 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>일일 전도 활동 종합 계산기</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: Arial, sans-serif; background:#f5f5f5; padding:10px;}
-h2 { text-align:center; margin-bottom:10px;}
-textarea { width:100%; height:260px; font-size:16px; padding:10px; }
-button { width:100%; font-size:16px; padding:10px; margin-top:6px; border:none; border-radius:5px; background:#4CAF50; color:#fff;}
-#result { margin-top:10px; background:#fff; padding:10px; border-radius:5px; font-weight:bold; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>🌳0.0 일일 전도 활동 보고 자동종합계산기 🌳</title>
+  <style>
+    body{font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,"Noto Sans KR",Helvetica,Arial,sans-serif; padding:20px; background:#f6f9f6}
+    h1{font-size:20px}
+    table{border-collapse:collapse;width:100%;background:white}
+    th,td{border:1px solid #ddd;padding:6px;text-align:left;font-size:13px}
+    th{background:#f0f6f0}
+    input[type=text]{width:100%;box-sizing:border-box;padding:6px;border:1px solid #ccc;border-radius:4px}
+    .fixed{background:#fff7cc}
+    .controls{margin:12px 0}
+    .err{color:#9b1c1c;background:#fee; padding:8px;border-radius:6px}
+    .ok{color:#064; background:#eef7ee;padding:8px;border-radius:6px}
+    pre{background:#111;color:#efe;border-radius:6px;padding:12px;overflow:auto}
+    button{padding:8px 12px;border-radius:6px;border:0;background:#2b8a3e;color:white;cursor:pointer}
+    button.secondary{background:#555}
+  </style>
 </head>
 <body>
+  <h1>🌳0.0 일일 전도 활동 보고 자동종합계산기 🌳</h1>
 
-<h2>일일 전도 활동 종합 계산기</h2>
+  <p>아래에서 1~5 구역의 <strong>구역/구역장(수정불가)</strong>을 유지한 채 나머지 칸을 입력하세요. 입력 형식 예: <code>홍길동2, 김철수1</code> 또는 <code>3(홍길동2, 김철수1)</code> 또는 <code>홍길동.5</code> 등.</p>
 
-<textarea id="inputText" placeholder="일보 텍스트 붙여넣기"></textarea>
-<button onclick="calculate()">종합하기</button>
-<div id="result"></div>
-<button onclick="copyResult()">결과 복사</button>
+  <table id="report">
+    <thead>
+      <tr>
+        <th>구역</th>
+        <th>구역장</th>
+        <th>섭외자보유</th>
+        <th>당일 찾기</th>
+        <th>당일 섭외</th>
+        <th>당일 만남</th>
+        <th>당일 단계향상 만남</th>
+        <th>상담따기</th>
+        <th>말씀따기</th>
+        <th>센터확답</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- five editable rows, but 구역/구역장 fixed -->
+      <tr data-zone="1"><td class="fixed">1</td><td class="fixed">현승화</td>
+        <td><input type="text" data-col="섭외자보유"></td>
+        <td><input type="text" data-col="찾기"></td>
+        <td><input type="text" data-col="섭외"></td>
+        <td><input type="text" data-col="만남"></td>
+        <td><input type="text" data-col="단계향상"></td>
+        <td><input type="text" data-col="상담따기"></td>
+        <td><input type="text" data-col="말씀따기"></td>
+        <td><input type="text" data-col="센터확답"></td>
+      </tr>
+      <tr data-zone="2"><td class="fixed">2</td><td class="fixed">김초아</td>
+        <td><input type="text" data-col="섭외자보유"></td>
+        <td><input type="text" data-col="찾기"></td>
+        <td><input type="text" data-col="섭외"></td>
+        <td><input type="text" data-col="만남"></td>
+        <td><input type="text" data-col="단계향상"></td>
+        <td><input type="text" data-col="상담따기"></td>
+        <td><input type="text" data-col="말씀따기"></td>
+        <td><input type="text" data-col="센터확답"></td>
+      </tr>
+      <tr data-zone="3"><td class="fixed">3</td><td class="fixed">설세진</td>
+        <td><input type="text" data-col="섭외자보유"></td>
+        <td><input type="text" data-col="찾기"></td>
+        <td><input type="text" data-col="섭외"></td>
+        <td><input type="text" data-col="만남"></td>
+        <td><input type="text" data-col="단계향상"></td>
+        <td><input type="text" data-col="상담따기"></td>
+        <td><input type="text" data-col="말씀따기"></td>
+        <td><input type="text" data-col="센터확답"></td>
+      </tr>
+      <tr data-zone="4"><td class="fixed">4</td><td class="fixed">김선</td>
+        <td><input type="text" data-col="섭외자보유"></td>
+        <td><input type="text" data-col="찾기"></td>
+        <td><input type="text" data-col="섭외"></td>
+        <td><input type="text" data-col="만남"></td>
+        <td><input type="text" data-col="단계향상"></td>
+        <td><input type="text" data-col="상담따기"></td>
+        <td><input type="text" data-col="말씀따기"></td>
+        <td><input type="text" data-col="센터확답"></td>
+      </tr>
+      <tr data-zone="5"><td class="fixed">5</td><td class="fixed">이환희</td>
+        <td><input type="text" data-col="섭외자보유"></td>
+        <td><input type="text" data-col="찾기"></td>
+        <td><input type="text" data-col="섭외"></td>
+        <td><input type="text" data-col="만남"></td>
+        <td><input type="text" data-col="단계향상"></td>
+        <td><input type="text" data-col="상담따기"></td>
+        <td><input type="text" data-col="말씀따기"></td>
+        <td><input type="text" data-col="센터확답"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="controls">
+    <button id="calc">종합 계산</button>
+    <button id="copy" class="secondary">복사 (보고서 텍스트 복사)</button>
+  </div>
+
+  <div id="messages"></div>
+  <div id="resultArea"></div>
+
+  <hr>
+  <div style="font-size:13px; color:#444">
+    <p>1) 구역장님과 전도파트 부꾸님이 상의해서 올려주세요(서로 공유하는 느낌~)</p>
+    <p>2) 여러 구역이 함께 맺는 섭외자는 일보올릴때 .5 빼먹지않게 같이 챙겨주세요(특히나 찾섭^^)</p>
+
+    <p>🤩 최소 하루에 찾기 5! 5! 5! 🤩</p>
+    <p>🤩 최소 하루에 찾기 5! 5! 5! 🤩</p>
+    <p>🤩 최소 하루에 만남 2! 2! 2! 🤩</p>
+    <p>🤩 최소 하루에 만남 2! 2! 2! 🤩</p>
+  </div>
 
 <script>
-const COLS = ["섭외자보유","당일 찾기","당일 섭외","당일 만남","단계향상 만남","상담따기","말씀따기","센터확답"];
-const CHECK_COLS = [1,2,3,4,5,6,7]; // 충돌 검사 대상 (섭외자보유 제외)
+// Parsing helpers
+function splitTopLevelComma(s){
+  // simple split by comma
+  return s.split(',').map(x=>x.trim()).filter(x=>x.length);
+}
+
+function parseNameCount(token){
+  // token like '홍길동2' or '홍길동.5' or '홍길동' or '김철수1'
+  token = token.trim();
+  if(!token) return null;
+  // look for trailing number or .5
+  const m = token.match(/^(.*?)\s*([0-9]+(\.[05])?)$/);
+  if(m){
+    const name = m[1].trim();
+    const count = parseFloat(m[2]);
+    return {name, count};
+  }
+  // otherwise if ends with .5 explicitly
+  const m2 = token.match(/^(.*?)(\.5)$/);
+  if(m2){
+    return {name: m2[1].trim(), count:0.5};
+  }
+  // if none, default count 1
+  return {name: token, count:1};
+}
+
+function parseFieldValue(raw){
+  raw = (raw||"").trim();
+  if(!raw) return {total:0,items:[],raw:''};
+  // case like 2(name1, name2)
+  const leadParen = raw.match(/^\s*([0-9]+)\s*\((.*)\)\s*$/);
+  if(leadParen){
+    const lead = parseInt(leadParen[1],10);
+    const inside = leadParen[2];
+    const tokens = splitTopLevelComma(inside);
+    const items = tokens.map(t=>parseNameCount(t)).filter(Boolean);
+    const sumInside = items.reduce((s,it)=>s+it.count,0);
+    return {total:lead, items, sumInside, raw};
+  }
+  // otherwise parse as list of names with optional counts
+  const tokens = splitTopLevelComma(raw);
+  const items = tokens.map(t=>parseNameCount(t)).filter(Boolean);
+  const total = items.reduce((s,it)=>s+it.count,0);
+  return {total:total, items, raw};
+}
+
+function zoneName(i){ return i.toString(); }
+
+function collectAll(){
+  const rows = Array.from(document.querySelectorAll('#report tbody tr'));
+  const data = rows.map(r=>{
+    const zone = r.getAttribute('data-zone');
+    const cols = {};
+    Array.from(r.querySelectorAll('input[data-col]')).forEach(inp=>{
+      cols[inp.getAttribute('data-col')] = inp.value.trim();
+    });
+    return {zone, cols};
+  });
+  return data;
+}
 
 function calculate(){
-  const text = document.getElementById("inputText").value;
-  const lines = text.split(/\r?\n/);
+  const data = collectAll();
+  const errors = [];
+  // 1) Ensure each row has inputs (we have inputs hardcoded), so skip
 
-  const sums = Array(8).fill(0);
-  const appear = {};  // name -> [{row,col}]
-  const half = {};
-  const word = {};
-  const center = {};
-
-  lines.forEach((line, row)=>{
-    if(!line.match(/^\d+\//)) return;
-    const parts = line.split("/");
-
-    parts.slice(2,10).forEach((cell, idx)=>{
-      if(!cell) return;
-
-      const num = cell.match(/^([\d.]+)/);
-      if(num) sums[idx] += parseFloat(num[1]);
-
-      const names = [...cell.matchAll(/([가-힣]+)(\.\d)?/g)];
-      names.forEach(m=>{
-        const name = m[1];
-        const isHalf = m[2];
-
-        if(isHalf){
-          half[name] = (half[name]||0)+1;
+  // 2) Check parentheses consistency
+  data.forEach(d=>{
+    for(const [col,v] of Object.entries(d.cols)){
+      if(!v) continue;
+      const p = parseFieldValue(v);
+      if(p.sumInside !== undefined){
+        // had leading number with parentheses
+        if(p.sumInside !== p.total){
+          errors.push(`${d.zone}구역 ${col} 괄호 안의 수치의 합과 괄호 앞 숫자가 틀립니다.`);
         }
-
-        if(idx===6){
-          word[name] = (word[name]||0)+(isHalf?0.5:1);
-        }
-        if(idx===7){
-          center[name] = (center[name]||0)+(isHalf?0.5:1);
-        }
-
-        appear[name] ??= [];
-        appear[name].push({row, col:idx});
-      });
-    });
+      }
+      // Also check if field contains something like '2(홍길동2, 김1)' but inner parse failed -> ignore
+    }
   });
 
-  const errors = [];
+  // 3) Gather name occurrences
+  const occurrences = {}; // name -> array of {zone,col,count,raw}
+  const dotHalfCounts = {}; // name -> count of .5 occurrences
 
-  // 다른 줄 + 다른 칸 충돌
-  for(const name in appear){
-    const items = appear[name]
-      .filter(o=>CHECK_COLS.includes(o.col));
-
-    items.forEach(a=>{
-      items.forEach(b=>{
-        if(a.row!==b.row && a.col!==b.col){
-          errors.push(
-            `${name} (${a.row+1}구역 ${COLS[a.col]} ↔ ${b.row+1}구역 ${COLS[b.col]})`
-          );
+  data.forEach(d=>{
+    for(const [col,v] of Object.entries(d.cols)){
+      if(!v) continue;
+      // if field is 섭외자보유, we still parse items but NOT use for conflict detection
+      const parsed = parseFieldValue(v);
+      const items = parsed.items.length? parsed.items : (parsed.raw? [ {name:parsed.raw, count:parsed.total} ] : []);
+      items.forEach(it=>{
+        const name = it.name;
+        const cnt = it.count;
+        if(!occurrences[name]) occurrences[name]=[];
+        occurrences[name].push({zone:d.zone, col, count:cnt, raw:v});
+        if(String(cnt).indexOf('.5')>=0 || cnt===0.5){
+          dotHalfCounts[name] = (dotHalfCounts[name]||0)+1;
         }
       });
-    });
-  }
+    }
+  });
 
-  // .5 단독
-  for(const name in half){
-    if(half[name]===1){
-      errors.push(`"${name}.5"는 어떤 구역과 함께 하셨나요?`);
+  // 4) .5 single occurrence check
+  for(const [name,cnt] of Object.entries(dotHalfCounts)){
+    if(cnt===1){
+      // find which zone has it
+      const occ = (occurrences[name]||[]).find(o=>o.count===0.5);
+      const zone = occ? occ.zone : '0';
+      errors.push(`${zone}구역의 "${name}.5"는 어떤 구역과 함께 하셨나요?`);
     }
   }
 
+  // 5) Conflict: same person in different 구역 AND different 칸 -> error (exclude 섭외자보유)
+  const conflictSet = new Set();
+  for(const [name, list] of Object.entries(occurrences)){
+    // ignore if only appears in one zone
+    const zones = new Set(list.map(x=>x.zone));
+    if(zones.size<=1) continue;
+    // if all appearances are in same column across zones => allowed? spec didn't forbid, but it said different 구역 & different 칸 causes error.
+    // so detect if there exist two appearances with different zone and different col
+    for(let i=0;i<list.length;i++){
+      for(let j=i+1;j<list.length;j++){
+        const a = list[i], b = list[j];
+        if(a.zone !== b.zone && a.col !== b.col){
+          // But ignore if either column is '섭외자보유'
+          if(a.col==='섭외자보유' || b.col==='섭외자보유') continue;
+          const key = [a.zone,a.col,b.zone,b.col,name].sort().join('|');
+          if(!conflictSet.has(key)){
+            conflictSet.add(key);
+            errors.push(`${a.zone}구역 ${a.col} vs ${b.zone}구역 ${b.col}`);
+          }
+        }
+      }
+    }
+  }
+
+  // 6) If any row missing required count of inputs? We always have inputs. But spec says "한 줄에 필요한 칸 개수가 맞지 않으면" — we'll check that there are 8 editable cols per row (we have 8)
+  // skip this check since UI ensures presence.
+
+  // If errors exist, show them and stop
+  const messages = document.getElementById('messages');
+  const resultArea = document.getElementById('resultArea');
+  messages.innerHTML = '';
+  resultArea.innerHTML = '';
   if(errors.length){
-    document.getElementById("result").innerText =
-      "오류:\n" + [...new Set(errors)].join("\n");
+    messages.innerHTML = '<div class="err"><strong>오류가 발견되었습니다:</strong><br>' + errors.map(e=>`- ${e}`).join('<br>') + '</div>';
     return;
   }
 
-  // 정수화
-  for(let i=0;i<sums.length;i++) sums[i] = Math.round(sums[i]);
+  // No errors -> compute 종합
+  // For each column sum numbers (섭외자보유 included), except 말씀따기/센터확답 need names aggregated
+  const colsToSum = ['섭외자보유','찾기','섭외','만남','단계향상','상담따기'];
+  const summed = {};
+  colsToSum.forEach(c=> summed[c]=0);
+  const nameAgg = { '말씀따기':{}, '센터확답':{} };
 
-  const wordText = Object.entries(word)
-    .map(([n,v])=>`${n}${v}`).join(" ");
-  const centerText = Object.entries(center)
-    .map(([n,v])=>`${n}${v}`).join(" ");
+  data.forEach(d=>{
+    for(const [col,v] of Object.entries(d.cols)){
+      if(!v) continue;
+      const p = parseFieldValue(v);
+      if(col==='말씀따기' || col==='센터확답'){
+        const items = p.items.length? p.items : (p.raw? [{name:p.raw, count:p.total}] : []);
+        items.forEach(it=>{
+          if(!nameAgg[col][it.name]) nameAgg[col][it.name]=0;
+          nameAgg[col][it.name] += it.count;
+        });
+      } else {
+        // numerical sum
+        const items = p.items;
+        let total = 0;
+        if(items && items.length){ total = items.reduce((s,it)=>s+it.count,0); }
+        else { total = p.total || 0; }
+        summed[col] = (summed[col]||0) + total;
+      }
+    }
+  });
 
-  const result =
-    "종합/" +
-    sums.slice(0,6).join("/") + "/" +
-    sums[6] + (wordText?`(${wordText})`:"") + "/" +
-    sums[7] + (centerText?`(${centerText})`:"");
+  // build 말씀따기 and 센터확답 string: name(count) but requirement: 말씀따기(이름숫자)/센터확답(이름숫자)
+  function formatNameAgg(obj){
+    const parts = Object.keys(obj).map(n=>`${n}${formatCount(obj[n])}`);
+    return parts.join(', ');
+  }
+  function formatCount(v){
+    // if integer, show as integer; if .5 sums to integer? show decimal if needed
+    if(Number.isInteger(v)) return v>0?`${v}` : '';
+    return `${v}`;
+  }
 
-  document.getElementById("result").innerText = result;
+  // Build 종합 string
+  const 종합parts = [];
+  종합parts.push(`종합/`);
+  종합parts.push(`섭외자보유:${summed['섭외자보유']||0}`);
+  종합parts.push(`찾기:${summed['찾기']||0}`);
+  종합parts.push(`섭외:${summed['섭외']||0}`);
+  종합parts.push(`만남:${summed['만남']||0}`);
+  종합parts.push(`단계향상:${summed['단계향상']||0}`);
+  종합parts.push(`상담따기:${summed['상담따기']||0}`);
+  const 말씀Str = formatNameAgg(nameAgg['말씀따기']);
+  const 센터Str = formatNameAgg(nameAgg['센터확답']);
+  종합parts.push(`말씀따기(${말씀Str})`);
+  종합parts.push(`센터확답(${센터Str})`);
+
+  resultArea.innerHTML = '<div class="ok"><strong>종합 계산 결과</strong></div><pre>' + 종합parts.join(' / ') + '</pre>';
 }
 
-function copyResult(){
-  navigator.clipboard.writeText(
-    document.getElementById("result").innerText
-  );
-  alert("복사 완료");
+// build report text for copy
+function buildReportText(){
+  const header = `🌳0.0 일일 전도 활동 보고 🌳\n\n구역/구역장/섭외자보유/당일 찾기/당일 섭외/당일 만남/당일 단계향상 만남/상담따기/말씀따기/센터확답\n\n`;
+  const rows = collectAll();
+  let body = '';
+  rows.forEach(r=>{
+    const parts = [];
+    parts.push(r.zone);
+    // find the fixed 구역장 text from the fixed cell
+    const tr = document.querySelector(`#report tbody tr[data-zone=\"${r.zone}\"]`);
+    const leader = tr.querySelector('td.fixed:nth-child(2)').textContent.trim();
+    parts.push(leader);
+    ['섭외자보유','찾기','섭외','만남','단계향상','상담따기','말씀따기','센터확답'].forEach(col=>{
+      const v = r.cols[col] || '';
+      parts.push(v);
+    });
+    body += parts.join('/') + '/\n';
+  });
+  body += '종합/\n\n1) 구역장님과 전도파트 부꾸님이 상의해서 올려주세요(서로 공유하는 느낌~)\n2) 여러 구역이 함께 맺는 섭외자는 일보올릴때 .5 빼먹지않게 같이 챙겨주세요(특히나 찾섭^^)\n\n🤩 최소 하루에 찾기 5! 5! 5! 🤩\n🤩 최소 하루에 찾기 5! 5! 5! 🤩\n🤩 최소 하루에 만남 2! 2! 2! 🤩\n🤩 최소 하루에 만남 2! 2! 2! 🤩\n';
+  return header + body;
 }
+
+// Event listeners
+document.getElementById('calc').addEventListener('click', calculate);
+document.getElementById('copy').addEventListener('click', ()=>{
+  const text = buildReportText();
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('보고서 텍스트가 복사되었습니다. 붙여넣기 해서 공유하세요.');
+  }).catch(()=>{
+    alert('복사에 실패했습니다. 페이지의 텍스트를 수동으로 복사해주세요.');
+  });
+});
+
 </script>
 
 </body>
