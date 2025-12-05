@@ -68,6 +68,7 @@ function calculate() {
             // 이름별 체크
             names.forEach(n => {
                 const val = parseFloat(n.split('.').pop()) || 1;
+
                 if (val === 0.5) {
                     if (!singleHalfTracker[n]) singleHalfTracker[n] = [];
                     singleHalfTracker[n].push(zone);
@@ -76,10 +77,9 @@ function calculate() {
                 if (!nameTracker[n]) nameTracker[n] = [];
                 const prev = nameTracker[n].find(e => {
                     if (e.zone !== zone) return true; // 다른 구역 → 오류
-                    // 같은 구역 내 당일 찾기 ↔ 당일 섭외 → 허용
-                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false;
-                    // 같은 칸 → 허용
-                    if (e.col === col) return false;
+                    // 같은 구역 내 허용 조건
+                    if (e.col === col) return false; // 같은 칸 → 허용
+                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기 ↔ 당일 섭외 → 허용
                     return true; // 같은 구역 다른 칸 → 오류
                 });
                 if (prev && col !== '섭외자보유') {
@@ -133,7 +133,7 @@ function copyResult() {
     const resultDiv = document.getElementById('result');
     if (!resultDiv.innerText) return;
     navigator.clipboard.writeText(resultDiv.innerText).then(() => {
-        alert('✅ 결과가 복사되었습니다!');
+        alert('결과가 복사되었습니다!');
     });
 }
 </script>
