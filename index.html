@@ -348,7 +348,7 @@ document.getElementById('calc').addEventListener('click', calculate);
 document.getElementById('copy').addEventListener('click', ()=>{
   const text = buildReportText();
   navigator.clipboard.writeText(text).then(()=>{
-    alert('보고서 텍스트가 복사되었습니다. 붙여넣기 해서 공유하세요.');
+    alert('텍스트가 복사되었습니다. 붙여넣기 해서 공유하세요.');
   }).catch(()=>{
     alert('복사에 실패했습니다. 페이지의 텍스트를 수동으로 복사해주세요.');
   });
