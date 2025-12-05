@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>일일 전도 활동 자동 종합 계산기</title>
+<title> 🌳일일 전도 활동 자동 종합🌳 </title>
 <style>
     body{
         font-family: "Pretendard", Arial, sans-serif;
@@ -67,9 +67,9 @@
 </head>
 <body>
 
-<h2>🌳 일일 전도 활동 자동 종합 계산기</h2>
+<h2>🌳 일일 전도 활동 자동 종합 🌳</h2>
 
-<textarea id="inputText" placeholder="여기에 전체 보고 내용을 붙여넣기 해주세요."></textarea>
+<textarea id="inputText" placeholder="여기에 전체 텍스트를 붙여넣기 해주세요."></textarea>
 
 <br /><br />
 
@@ -80,10 +80,10 @@
 
 <div id="error-info">
     <strong>※ 오류 안내</strong><br>
-    - 구역별 칸이 10개가 아니면 오류가 발생합니다.<br>
-    - 괄호 앞 숫자와 괄호 안 숫자 합이 다르면 오류가 발생합니다.<br>
-    - 동일 인물이 서로 다른 구역/칸에 등장하면 오류가 발생합니다.<br>
-    - .5 표시는 반드시 한 구역의 한 칸에만 등장해야 합니다.<br>
+    - 구역별 칸이 10개가 아닌 경우<br>
+    - 괄호 앞 숫자와 괄호 안 숫자 합이 다른 경우<br>
+    - 동일 인물이 서로 다른 구역/칸에 등장하는 경우<br>
+    - 이름이 누락된 경우(타구역과 소통 필요)<br>
 </div>
 
 <script>
@@ -224,7 +224,7 @@ function calculate(){
 function copyResult(){
     const text = document.getElementById("result-box").textContent;
     navigator.clipboard.writeText(text);
-    alert("복사되었습니다!");
+    alert("✅ 복사되었습니다!");
 }
 </script>
 
