@@ -1,277 +1,116 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>일일 활동 보고 자동 종합</title>
-  <style>
-    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,'Noto Sans KR',Arial;}
-    body{max-width:980px;margin:20px auto;padding:18px;background:#fbfbfb;border:1px solid #eee;border-radius:10px}
-    h1{font-size:20px;margin:0 0 12px}
-    textarea{width:100%;min-height:260px;padding:12px;font-size:13px;border-radius:8px;border:1px solid #ddd;resize:vertical}
-    .row{display:flex;gap:8px;margin-top:8px}
-    button{padding:10px 14px;border-radius:8px;border:0;background:#0b76ef;color:#fff;cursor:pointer}
-    button.secondary{background:#6c757d}
-    pre{white-space:pre-wrap;background:#fff;padding:12px;border-radius:8px;border:1px solid #ececec;min-height:80px}
-
-    /* 새 오류박스 */
-    .error-box{
-      background:#fff6e6;
-      border-left:6px solid #ffa63e;
-      padding:14px 16px;
-      border-radius:6px;
-      color:#6a3c00;
-      margin-bottom:20px;
-      line-height:1.55;
-      font-size:14px;
-    }
-    .error-box strong{
-      font-size:15px;
-      display:block;
-      margin-bottom:6px;
-    }
-
-    label{font-weight:600}
-    .hint{font-size:12px;color:#666;margin-top:6px}
-  </style>
+<meta charset="UTF-8">
+<title>전도 일보 자동 종합기</title>
+<style>
+    body { font-family: sans-serif; margin: 40px; }
+    textarea { width: 100%; height: 250px; font-size: 15px; }
+    pre { background: #f6f6f6; padding: 20px; white-space: pre-wrap; }
+    button { margin-right: 10px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+</style>
 </head>
 <body>
-  <h1>🌳 일일 전도 활동 종합 🌳</h1>
 
-  <div class="error-box">
-    <strong>📌 오류 안내</strong>
-    - 구역별 데이터 칸 수가 10개가 아닌 경우<br>
-    - 괄호 안 인원 합계와 괄호 앞 숫자가 일치하지 않는 경우<br>
-    - 다른 구역에서 같은 이름 등장 시, 동명이인 여부 확인 후 오류 처리<br>
-    - .5 인원이 단독 등장하는 경우<br>
-  </div>
+<h2>📌 전도 일보 자동 종합기</h2>
+<p>아래에 일보 텍스트를 그대로 붙여넣으세요.</p>
 
-  <textarea id="input" placeholder="여기에 일보 전체 텍스트 붙여넣기"></textarea>
+<textarea id="inputText"></textarea><br><br>
 
-  <div class="row">
-    <button id="calc">계산하기</button>
-    <button class="secondary" id="clear">지우기</button>
-    <button id="copy" title="복사">결과 복사</button>
-  </div>
+<button onclick="calculate()">종합 계산하기</button>
+<button onclick="copyOutput()">📋 종합 복사하기</button>
 
-  <h3 style="margin-top:16px">결과</h3>
-  <div id="result"></div>
+<h3>📊 종합 결과</h3>
+<pre id="output"></pre>
 
-  <script>
-    const trim = s => s.replace(/^\s+|\s+$/g, '');
-    const floatEq = (a,b,t=0.001) => Math.abs(a-b) < t;
+<script>
+function calculate() {
+    const text = document.getElementById("inputText").value;
 
-    const COLS = ['구역번호','구역장','섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'];
+    const totals = {
+        섭외자보유: 0,
+        당일찾기: 0,
+        당일섭외: 0,
+        만남: 0,
+        단계향상: 0,
+        상담: 0,
+        말씀: 0,
+        센터: 0
+    };
 
-    /** ------------------------
-        ✔ 수정포인트 1 — 숫자칸 정의
-        구역번호, 구역장 제외 모든 칸 숫자만 허용
-     ------------------------- */
-    const numericOnlyCols = new Set([
-      '섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'
-    ]);
+    const nameTotals = { 말씀: {}, 센터: {} };
 
-    function parseBlock(text){
-      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=="");
-      if(lines.length===0) return {error:['입력 텍스트가 비어 있습니다.']};
+    const lines = text.split("\n").filter(l => l.match(/^\d+\//));
 
-      const dataLines = lines.filter(l => /^\d+\//.test(l));
-      if(dataLines.length===0) return {error:['구역 데이터 라인을 찾을 수 없습니다. (예: 1/현승화/...)']};
+    function sumNumbers(str) {
+        if (!str) return 0;
+        return str.match(/[\d\.]+/g)?.map(Number).reduce((a, b) => a + b, 0) || 0;
+    }
 
-      const rows = [];
-      const errors = [];
-      const nameMap = new Map();  // 이름 → 출현지 저장
+    function extractNames(str, store) {
+        if (!str) return;
+        const items = str.match(/[가-힣A-Za-z0-9]+\.?\d*/g) || [];
 
-      dataLines.forEach((line, idx) => {
-        const parts = line.split('/');
-        parts.forEach((v,i)=> parts[i] = trim(v));
+        items.forEach(item => {
+            const match = item.match(/^([가-힣A-Za-z0-9]+)(\.(\d+))?$/);
+            if (!match) return;
 
-        if(parts.length !== 10){
-          const zone = parts[0] || `(라인 ${idx+1})`;
-          errors.push(`${zone}구역 칸 개수가 부족합니다.`);
-          rows.push({raw:line, parts});
-          return;
-        }
-
-        const zone = parts[0];
-        const obj = {zone, raw:line, parts:{}};
-
-        for(let i=1;i<10;i++){
-          const colName = COLS[i];
-          const rawCell = parts[i];
-
-          /** ⬇ 수정포인트 2: 숫자 칸은 최상단에서 숫자 형식 검증 */
-          if(numericOnlyCols.has(colName)){
-            if(!/^\d+(\.\d+)?(\(.*\))?$/.test(rawCell)){
-              errors.push(`${zone}구역 ${colName}에는 숫자만 입력할 수 있습니다: "${rawCell}"`);
-            }
-          }
-
-          // 기존 logic — count(name) parsing 유지
-          const m = rawCell.match(/^(\d+(?:\.\d+)?)(?:\((.*)\))?$/);
-          if(!m){
-            obj.parts[colName] = {raw:rawCell, count:null, names:[]};
-            continue;
-          }
-
-          const count = parseFloat(m[1]);
-          const inside = m[2] ? trim(m[2]) : null;
-          const names = [];
-
-          if(inside){
-            const tokens = inside.split(/\s+/).filter(Boolean);
-            tokens.forEach(tok=>{
-              tok = tok.replace(/[,，\/]+$/,'');
-              let value=1, name=tok;
-              if(/\.5$/.test(tok)){ value=0.5; name=tok.replace(/\.5$/,''); }
-              else if(/1$/.test(tok) && !/[^\u0000-\u007F]1$/.test(tok)){ value=1; name=tok.replace(/1$/,''); }
-              names.push({name,value});
-            });
-          }
-
-          const sumNames = names.reduce((s,n)=>s+(parseFloat(n.value)||0),0);
-          if(inside && !floatEq(sumNames,count)){
-            errors.push(`${zone}구역 ${colName} 괄호 합계 불일치`);
-          }
-
-          obj.parts[colName] = {raw:rawCell,count,names};
-
-          // ⬇ 이름 위치 저장
-          names.forEach(n=>{
-            if(!nameMap.has(n.name)) nameMap.set(n.name,[]);
-            nameMap.get(n.name).push({zone,col:colName,value:n.value});
-          });
-        }
-        rows.push(obj);
-      });
-
-      /** ---------------------------------------------
-          ✔ 수정포인트 3 — 다른 구역에서 이름 중복 시 팝업 확인
-          같은 구역(같은 줄)은 오류 아님!
-      ----------------------------------------------*/
-
-      const asked = new Set(); // 같은 이름 중복 질문 방지
-
-      for(const [name, occs] of nameMap){
-
-        // 다른 구역 비교
-        const byZone = new Map();
-        occs.forEach(o=>{
-          if(!byZone.has(o.zone)) byZone.set(o.zone,[]);
-          byZone.get(o.zone).push(o);
+            const name = match[1];
+            const value = match[3] ? Number("0." + match[3]) : 1;
+            store[name] = (store[name] || 0) + value;
         });
-
-        if(byZone.size <= 1) continue; // 같은 구역 내부 중복 → 허용
-
-        if(!asked.has(name)){
-          const ok = confirm(`"${name}" 이름이 여러 구역에서 등장합니다.\n동명이인입니까?`);
-          asked.add(name);
-
-          if(!ok){
-            errors.push(`"${name}" — 다른 구역 중복 (동명이인 아님)`);
-          }
-        }
-      }
-
-      /** 0.5 단독 등장 체크 */
-      for(const [name,occs] of nameMap){
-        let countHalf = occs.filter(o=>parseFloat(o.value)===0.5).length;
-        if(countHalf===1 && occs.length===1){
-          const only = occs[0];
-          errors.push(`${only.zone}구역 "${name}.5"는 단독 등장입니다.`);
-        }
-      }
-
-      return {errors, rows, nameMap};
     }
 
-    /** 기존 summary는 그대로 */
-    function computeSummary(parsed){
-      const rows = parsed.rows;
-      const numericCols = ['섭외자보유','찾기','섭외','만남','단계향상','상담'];
-      const sums = {};
-      numericCols.forEach(c=>sums[c]=0);
+    lines.forEach(line => {
+        const p = line.split("/");
 
-      const talkMap=new Map(), centerMap=new Map();
+        totals.섭외자보유 += sumNumbers(p[2]);
+        totals.당일찾기   += sumNumbers(p[3]);
+        totals.당일섭외   += sumNumbers(p[4]);
+        totals.만남       += sumNumbers(p[5]);
+        totals.단계향상   += sumNumbers(p[6]);
+        totals.상담       += sumNumbers(p[7]);
 
-      for(const r of rows){
-        for(const c of numericCols){
-          const val = r.parts[c]?.count ?? 0;
-          sums[c] += parseFloat(val);
-        }
-        const talk=r.parts['말씀따기'], cen=r.parts['센터확답'];
-        if(talk?.names) talk.names.forEach(n=>talkMap.set(n.name,(talkMap.get(n.name)||0)+n.value));
-        if(cen?.names) cen.names.forEach(n=>centerMap.set(n.name,(centerMap.get(n.name)||0)+n.value));
-      }
+        totals.말씀 += sumNumbers(p[8]);
+        extractNames(p[8], nameTotals.말씀);
 
-      const namesToString = map => 
-        [...map.entries()]
-          .filter(([k,v])=>v>0)
-          .sort((a,b)=>b[1]-a[1])
-          .map(([k,v])=>`${k}${v}`)
-          .join(' ');
+        totals.센터 += sumNumbers(p[9]);
+        extractNames(p[9], nameTotals.센터);
+    });
 
-      return {
-        sums,
-        talkStr: namesToString(talkMap),
-        centerStr: namesToString(centerMap)
-      };
+    function nameSummary(obj) {
+        const entries = Object.entries(obj);
+        if (entries.length === 0) return "";
+        return entries.map(([name, val]) => `${name}${val}`).join(" ");
     }
 
-    /** 버튼 이벤트 */
-    document.getElementById('calc').addEventListener('click',()=>{
-      const text=document.getElementById('input').value;
-      const parsed=parseBlock(text);
-      const result=document.getElementById('result');
+    const result =
+        "종합/" +
+        totals.섭외자보유 + "/" +
+        totals.당일찾기 + "/" +
+        totals.당일섭외 + "/" +
+        totals.만남 + "/" +
+        totals.단계향상 + "/" +
+        totals.상담 + "/" +
+        totals.말씀 + (nameSummary(nameTotals.말씀) ? `(${nameSummary(nameTotals.말씀)})` : "") + "/" +
+        totals.센터 + (nameSummary(nameTotals.센터) ? `(${nameSummary(nameTotals.센터)})` : "");
 
-      if(parsed.error){
-        result.textContent=parsed.error.join('\n');
+    document.getElementById("output").innerText = result;
+}
+
+function copyOutput() {
+    const text = document.getElementById("output").innerText;
+
+    if (!text.trim()) {
+        alert("복사할 종합 결과가 없습니다. 먼저 계산해주세요!");
         return;
-      }
-      if(parsed.errors?.length){
-        result.textContent=parsed.errors.join('\n');
-        return;
-      }
+    }
 
-      const summary=computeSummary(parsed);
-      const original=text.split(/\r?\n/).filter(l=>l.trim()!=="");
-
-      const numericCols=['섭외자보유','찾기','섭외','만남','단계향상','상담'];
-      const sums=summary.sums;
-
-      let talkTotal=0, centerTotal=0;
-      parsed.rows.forEach(r=>{ talkTotal+=parseFloat(r.parts['말씀따기']?.count||0); });
-      parsed.rows.forEach(r=>{ centerTotal+=parseFloat(r.parts['센터확답']?.count||0); });
-
-      const finalLine=[
-        '종합',
-        sums['섭외자보유'],
-        sums['찾기'],
-        sums['섭외'],
-        sums['만남'],
-        sums['단계향상'],
-        sums['상담'],
-        talkTotal,
-        centerTotal
-      ].join('/');
-
-      const nameLine =
-        (summary.talkStr?`말씀따기(${summary.talkStr}) `:'') +
-        (summary.centerStr?`센터확답(${summary.centerStr})`:'');
-
-      const output=[...original, finalLine + (nameLine?'\n'+nameLine:'')].join('\n');
-      result.textContent=output;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("✅ 결과가 복사되었습니다!");
     });
+}
+</script>
 
-    document.getElementById('copy').addEventListener('click',()=>{
-      const txt=document.getElementById('result').textContent;
-      navigator.clipboard.writeText(txt).then(()=>alert('✅ 결과가 복사되었습니다.'));
-    });
-
-    document.getElementById('clear').addEventListener('click',()=>{
-      document.getElementById('input').value='';
-      document.getElementById('result').textContent='(아직 계산하지 않음)';
-    });
-  </script>
 </body>
 </html>
