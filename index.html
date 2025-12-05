@@ -6,145 +6,136 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
-h2 { text-align: center; margin-bottom: 10px; }
-textarea { width: 100%; height: 250px; font-size: 16px; padding: 10px; margin-bottom: 10px; resize: vertical; }
+h2 { text-align: center; margin-bottom: 6px; }
+.notice {
+  background:#fff3cd;
+  border:1px solid #ffeeba;
+  border-radius:5px;
+  padding:8px;
+  font-size:13px;
+  margin-bottom:10px;
+  line-height:1.4;
+}
+textarea { width: 100%; height: 260px; font-size: 15px; padding: 10px; margin-bottom: 10px; resize: vertical; }
 button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
 button:hover { background: #45a049; }
-#result { margin-top: 10px; font-weight: bold; font-size: 18px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; }
+#result { margin-top: 10px; font-weight: bold; font-size: 16px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; white-space: pre-line; }
 </style>
 </head>
 <body>
 
 <h2>일일 전도 활동 종합 계산기</h2>
 
-<textarea id="inputText" placeholder="일보 텍스트를 여기에 붙여넣기"></textarea>
+<div class="notice">
+❗ <b>오류가 표시되는 경우</b><br>
+• 같은 이름이 서로 다른 <b>활동 칸</b>에 등장한 경우<br>
+• <b>.5</b>가 한 번만 등장해 함께한 구역 확인이 필요한 경우<br>
+• 줄에 필요한 칸 수가 부족한 경우<br>
+→ 오류가 있으면 <b>종합은 출력되지 않습니다</b>.
+</div>
+
+<textarea id="inputText" placeholder="일보 텍스트를 그대로 붙여넣기"></textarea>
 <button id="calculateBtn">종합하기</button>
 <div id="result"></div>
 <button id="copyBtn">결과 복사</button>
 
 <script>
-function getColName(index){
-    switch(index){
-        case 2: return "섭외자보유";
-        case 3: return "당일 찾기";
-        case 4: return "당일 섭외";
-        case 5: return "당일 만남";
-        case 6: return "단계향상 만남";
-        case 7: return "상담따기";
-        case 8: return "말씀따기";
-        case 9: return "센터확답";
-    }
-}
+const COL_NAMES = {
+  2:"섭외자보유", 3:"당일 찾기", 4:"당일 섭외", 5:"당일 만남",
+  6:"단계향상 만남", 7:"상담따기", 8:"말씀따기", 9:"센터확답"
+};
 
-document.getElementById('calculateBtn').addEventListener('click', function() {
-    const text = document.getElementById('inputText').value;
-    const numbers = [0,0,0,0,0,0,0,0];
-    const nameMap = {};
-    const halfMap = {};
-    const columnErrors = [];
-    const lines = text.split(/\r?\n/);
+document.getElementById("calculateBtn").onclick = () => {
+  const text = document.getElementById("inputText").value;
+  const lines = text.split(/\r?\n/);
 
-    lines.forEach((line, lineIndex) => {
-        if(!line.match(/^\d+\//)) return;
+  const sums = Array(8).fill(0);
+  const appearMap = {};
+  const halfCount = {};
+  const talkie = {};
+  const center = {};
+  const errors = [];
 
-        const parts = line.split('/');
+  lines.forEach((line, idx) => {
+    if(!/^\d+\//.test(line)) return;
+    const p = line.split("/");
 
-        // ✅ 칸 부족 체크 (총 10칸 필요)
-        if(parts.length < 10){
-            columnErrors.push(`${lineIndex + 1}번 줄 — 칸 부족 (${parts.length}/10)`);
-            return;
-        }
-
-        for(let i=2;i<=9;i++){
-            if(parts[i]){
-                // 숫자 합산
-                const match = parts[i].trim().match(/^(\d+(\.\d+)?)/);
-                if(match) {
-                    numbers[i-2] += parseFloat(match[0]);
-                }
-
-                // 이름 추출
-                const nameMatches = parts[i].match(/\(([^)]+)\)/g);
-                if(nameMatches){
-                    nameMatches.forEach(raw => {
-                        const names = raw.replace(/[()]/g,'').split(' ');
-                        names.forEach(name => {
-
-                            // ✅ .5 체크
-                            if(name.includes('.5')){
-                                if(!halfMap[name]) halfMap[name] = 0;
-                                halfMap[name]++;
-                            }
-
-                            // ✅ 섭외자보유(index=2)는 충돌 체크 제외
-                            if(i === 2) return;
-
-                            if(!nameMap[name]) nameMap[name] = {};
-                            if(!nameMap[name][i]) nameMap[name][i] = new Set();
-                            nameMap[name][i].add(lineIndex);
-                        });
-                    });
-                }
-            }
-        }
-    });
-
-    const errors = [];
-
-    // ✅ 다른 칸 중복 충돌 체크 (섭외자보유 제외)
-    for(let name in nameMap){
-        const cols = Object.keys(nameMap[name]);
-        for(let j=0;j<cols.length;j++){
-            for(let k=j+1;k<cols.length;k++){
-                const colA = cols[j];
-                const colB = cols[k];
-                const linesA = Array.from(nameMap[name][colA]);
-                const linesB = Array.from(nameMap[name][colB]);
-
-                if(
-                    linesA.some(a => !linesB.includes(a)) ||
-                    linesB.some(b => !linesA.includes(b))
-                ){
-                    errors.push(`"${name}": ${getColName(parseInt(colA))} vs ${getColName(parseInt(colB))}`);
-                }
-            }
-        }
+    if(p.length < 10){
+      errors.push(`${idx+1}번 줄: 칸 부족`);
+      return;
     }
 
-    // ✅ .5 단독 등장 오류
-    for(let name in halfMap){
-        if(halfMap[name] === 1){
-            errors.push(`"${name}"는 어떤 구역과 함께 하셨나요?`);
+    for(let i=2;i<=9;i++){
+      const cell = p[i];
+      if(!cell) continue;
+
+      const num = cell.match(/^(\d+(\.\d+)?)/);
+      if(num) sums[i-2]+=parseFloat(num[1]);
+
+      const names = cell.match(/\(([^)]+)\)/);
+      if(!names) continue;
+
+      names[1].split(" ").forEach(n=>{
+        if(n.includes(".5")){
+          halfCount[n]=(halfCount[n]||0)+1;
         }
-    }
 
-    // ✅ 소수점 처리 규칙
-    numbers[4] = Math.floor(numbers[4]); // 단계향상 만남
-    numbers[5] = Math.round(numbers[5]); // 상담따기
-    for(let i=0;i<numbers.length;i++){
-        if(i !== 4 && i !== 5){
-            numbers[i] = Math.round(numbers[i]);
+        if(i!==2){
+          appearMap[n]=appearMap[n]||{};
+          appearMap[n][i]=true;
         }
+
+        if(i===8){
+          const key=n.replace(/[^가-힣]/g,"");
+          talkie[key]=(talkie[key]||0)+(n.includes(".5")?0.5:1);
+        }
+        if(i===9){
+          const key=n.replace(/[^가-힣]/g,"");
+          center[key]=(center[key]||0)+(n.includes(".5")?0.5:1);
+        }
+      });
     }
+  });
 
-    // ✅ 오류 우선 출력
-    let allErrors = [];
-    if(columnErrors.length > 0) allErrors = allErrors.concat(columnErrors);
-    if(errors.length > 0) allErrors = allErrors.concat(errors);
+  for(const n in appearMap){
+    const cols=Object.keys(appearMap[n]);
+    if(cols.length>1){
+      errors.push(`${n}: ${COL_NAMES[cols[0]]} vs ${COL_NAMES[cols[1]]}`);
+    }
+  }
 
-    const resultText = allErrors.length > 0
-        ? "오류: " + allErrors.join('; ')
-        : '종합/' + numbers.join('/');
+  for(const n in halfCount){
+    if(halfCount[n]===1){
+      errors.push(`${n}는 어떤 구역과 함께 하셨나요?`);
+    }
+  }
 
-    document.getElementById('result').innerText = resultText;
-});
+  if(errors.length){
+    document.getElementById("result").innerText="오류:\n"+errors.join("\n");
+    return;
+  }
 
-document.getElementById('copyBtn').addEventListener('click', function(){
-    const result = document.getElementById('result').innerText;
-    navigator.clipboard.writeText(result).then(()=>{
-        alert('결과가 클립보드에 복사되었습니다!');
-    });
-});
+  const rounded=sums.map(v=>Math.round(v));
+  rounded[4]=Math.floor(sums[4]);
+
+  let result=`종합/${rounded.join("/")}`;
+
+  const nameSum = obj =>
+    Object.keys(obj).length
+      ? " ("+Object.entries(obj).map(([k,v])=>`${k}${v}`).join(" ")+")"
+      : "";
+
+  result += nameSum(talkie);
+  result += nameSum(center);
+
+  document.getElementById("result").innerText=result;
+};
+
+document.getElementById("copyBtn").onclick=()=>{
+  const t=document.getElementById("result").innerText;
+  navigator.clipboard.writeText(t);
+  alert("복사되었습니다!");
+};
 </script>
 
 </body>
