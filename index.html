@@ -103,6 +103,10 @@ function calculate() {
                 });
                 let keys = Object.keys(groups);
                 if(keys.length>1){
+                    // .5 예외 처리: 다른 구역 동일 칸, 모든 숫자가 .5이면 오류 아님
+                    let allHalf = entries.every(e=>e.num === 0.5);
+                    if(allHalf) continue;
+
                     for(let i=0;i<keys.length;i++){
                         for(let j=i+1;j<keys.length;j++){
                             // 당일찾기/당일섭외 예외
