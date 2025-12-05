@@ -13,8 +13,8 @@
     button{padding:10px 14px;border-radius:8px;border:0;background:#0b76ef;color:#fff;cursor:pointer}
     button.secondary{background:#6c757d}
     pre{white-space:pre-wrap;background:#fff;padding:12px;border-radius:8px;border:1px solid #ececec;min-height:80px}
-    
-    /* ✔ 새로 디자인한 오류 안내 박스 */
+
+    /* 새 오류박스 */
     .error-box{
       background:#fff6e6;
       border-left:6px solid #ffa63e;
@@ -38,13 +38,12 @@
 <body>
   <h1>🌳 일일 전도 활동 종합 🌳</h1>
 
-  <!-- ✔ 새로 정리된 오류 안내 박스 -->
   <div class="error-box">
-    <strong>📌 오류로 뜨는 경우</strong>
+    <strong>📌 오류 안내</strong>
     - 구역별 데이터 칸 수가 10개가 아닌 경우<br>
     - 괄호 안 인원 합계와 괄호 앞 숫자가 일치하지 않는 경우<br>
-    - 동일 인물이 여러 구역 또는 다른 칸에 중복으로 기록된 경우<br>
-    - 이름.5인 인원이 한 구역에서만 등장할 경우<br>
+    - 다른 구역에서 같은 이름 등장 시, 동명이인 여부 확인 후 오류 처리<br>
+    - .5 인원이 단독 등장하는 경우<br>
   </div>
 
   <textarea id="input" placeholder="여기에 일보 전체 텍스트 붙여넣기"></textarea>
@@ -59,11 +58,18 @@
   <div id="result"></div>
 
   <script>
-    // ------ 기존 JS 전체 그대로 (변경 없음) ------
     const trim = s => s.replace(/^\s+|\s+$/g, '');
     const floatEq = (a,b,t=0.001) => Math.abs(a-b) < t;
 
     const COLS = ['구역번호','구역장','섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'];
+
+    /** ------------------------
+        ✔ 수정포인트 1 — 숫자칸 정의
+        구역번호, 구역장 제외 모든 칸 숫자만 허용
+     ------------------------- */
+    const numericOnlyCols = new Set([
+      '섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'
+    ]);
 
     function parseBlock(text){
       const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=="");
@@ -74,11 +80,11 @@
 
       const rows = [];
       const errors = [];
-      const nameMap = new Map();
+      const nameMap = new Map();  // 이름 → 출현지 저장
 
       dataLines.forEach((line, idx) => {
         const parts = line.split('/');
-        for(let i=0;i<parts.length;i++) parts[i] = trim(parts[i]);
+        parts.forEach((v,i)=> parts[i] = trim(v));
 
         if(parts.length !== 10){
           const zone = parts[0] || `(라인 ${idx+1})`;
@@ -93,15 +99,25 @@
         for(let i=1;i<10;i++){
           const colName = COLS[i];
           const rawCell = parts[i];
+
+          /** ⬇ 수정포인트 2: 숫자 칸은 최상단에서 숫자 형식 검증 */
+          if(numericOnlyCols.has(colName)){
+            if(!/^\d+(\.\d+)?(\(.*\))?$/.test(rawCell)){
+              errors.push(`${zone}구역 ${colName}에는 숫자만 입력할 수 있습니다: "${rawCell}"`);
+            }
+          }
+
+          // 기존 logic — count(name) parsing 유지
           const m = rawCell.match(/^(\d+(?:\.\d+)?)(?:\((.*)\))?$/);
           if(!m){
-            errors.push(`${zone}구역 ${colName}의 형식이 올바르지 않습니다: "${rawCell}"`);
             obj.parts[colName] = {raw:rawCell, count:null, names:[]};
             continue;
           }
+
           const count = parseFloat(m[1]);
           const inside = m[2] ? trim(m[2]) : null;
           const names = [];
+
           if(inside){
             const tokens = inside.split(/\s+/).filter(Boolean);
             tokens.forEach(tok=>{
@@ -112,12 +128,15 @@
               names.push({name,value});
             });
           }
+
           const sumNames = names.reduce((s,n)=>s+(parseFloat(n.value)||0),0);
           if(inside && !floatEq(sumNames,count)){
-            errors.push(`${zone}구역 ${colName} 괄호 안의 합과 앞 숫자가 다릅니다.`);
+            errors.push(`${zone}구역 ${colName} 괄호 합계 불일치`);
           }
+
           obj.parts[colName] = {raw:rawCell,count,names};
 
+          // ⬇ 이름 위치 저장
           names.forEach(n=>{
             if(!nameMap.has(n.name)) nameMap.set(n.name,[]);
             nameMap.get(n.name).push({zone,col:colName,value:n.value});
@@ -126,36 +145,47 @@
         rows.push(obj);
       });
 
-      const conflictSet = new Set();
+      /** ---------------------------------------------
+          ✔ 수정포인트 3 — 다른 구역에서 이름 중복 시 팝업 확인
+          같은 구역(같은 줄)은 오류 아님!
+      ----------------------------------------------*/
+
+      const asked = new Set(); // 같은 이름 중복 질문 방지
+
       for(const [name, occs] of nameMap){
-        const nonBo = occs.filter(o => o.col !== '섭외자보유');
-        if(nonBo.length===0) continue;
-        for(let i=0;i<occs.length;i++){
-          for(let j=i+1;j<occs.length;j++){
-            const a = occs[i], b = occs[j];
-            if(a.zone !== b.zone && a.col !== '섭외자보유' && b.col !== '섭외자보유'){
-              const key = [a.zone,a.col,b.zone,b.col].sort().join('|');
-              if(!conflictSet.has(key)) conflictSet.add(key);
-            }
+
+        // 다른 구역 비교
+        const byZone = new Map();
+        occs.forEach(o=>{
+          if(!byZone.has(o.zone)) byZone.set(o.zone,[]);
+          byZone.get(o.zone).push(o);
+        });
+
+        if(byZone.size <= 1) continue; // 같은 구역 내부 중복 → 허용
+
+        if(!asked.has(name)){
+          const ok = confirm(`"${name}" 이름이 여러 구역에서 등장합니다.\n동명이인입니까?`);
+          asked.add(name);
+
+          if(!ok){
+            errors.push(`"${name}" — 다른 구역 중복 (동명이인 아님)`);
           }
         }
       }
-      conflictSet.forEach(k=>{
-        const p = k.split('|');
-        errors.push(`${p[0]}구역 ${p[1]} vs ${p[2]}구역 ${p[3]}`);
-      });
 
+      /** 0.5 단독 등장 체크 */
       for(const [name,occs] of nameMap){
         let countHalf = occs.filter(o=>parseFloat(o.value)===0.5).length;
         if(countHalf===1 && occs.length===1){
           const only = occs[0];
-          errors.push(`${only.zone}구역의 "${name}.5"는 어느 구역과 함께였나요?`);
+          errors.push(`${only.zone}구역 "${name}.5"는 단독 등장입니다.`);
         }
       }
 
       return {errors, rows, nameMap};
     }
 
+    /** 기존 summary는 그대로 */
     function computeSummary(parsed){
       const rows = parsed.rows;
       const numericCols = ['섭외자보유','찾기','섭외','만남','단계향상','상담'];
@@ -188,6 +218,7 @@
       };
     }
 
+    /** 버튼 이벤트 */
     document.getElementById('calc').addEventListener('click',()=>{
       const text=document.getElementById('input').value;
       const parsed=parseBlock(text);
