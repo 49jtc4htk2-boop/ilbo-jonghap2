@@ -2,166 +2,141 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>일일 전도 활동 보고 종합</title>
+<title>일일 전도 활동 종합</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; }
-textarea { width: 100%; height: 250px; font-family: monospace; margin-bottom: 10px; }
-button { padding: 10px 20px; margin-bottom: 10px; }
-pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
-.error { color: red; font-weight: bold; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-td, th { border: 1px solid #ccc; padding: 5px; text-align: center; }
-th { background: #eee; }
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  textarea { width: 100%; height: 250px; margin-bottom: 10px; }
+  pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+  button { margin-top: 10px; padding: 10px 20px; }
 </style>
 </head>
 <body>
-
-<h2>🌳 일일 전도 활동 보고 종합 🌳</h2>
-
-<textarea id="inputData" placeholder="여기에 보고 데이터를 붙여넣으세요"></textarea>
-<br>
-<button onclick="calculate()">계산</button>
-<button onclick="copyToClipboard()">결과 복사하기</button>
-
-<h3>결과</h3>
+<h2>일일 전도 활동 종합 계산기</h2>
+<textarea id="inputData" placeholder="보고서를 붙여넣으세요"></textarea>
+<button onclick="calculate()">종합 계산</button>
 <pre id="output"></pre>
+<button onclick="copyResult()">결과 복사</button>
 
 <script>
-let latestResult = '';
+function parseNumber(str) {
+    if(!str) return 0;
+    let sum = 0;
+    str.replace(/(\d+\.?\d*)/g, (_, n) => sum += parseFloat(n));
+    return sum;
+}
+
+function extractNamesWithNumbers(str) {
+    let result = [];
+    if(!str) return result;
+    const regex = /([^\d().]+)(\d+\.?\d*)?/g;
+    let match;
+    while((match = regex.exec(str)) !== null){
+        let name = match[1].trim();
+        let num = match[2] ? parseFloat(match[2]) : 1;
+        result.push({name, num});
+    }
+    return result;
+}
 
 function calculate() {
-    const input = document.getElementById('inputData').value.trim();
-    const output = document.getElementById('output');
-    output.textContent = '';
-    latestResult = '';
-
-    if(!input) {
-        output.textContent = '데이터를 입력해주세요.';
+    const raw = document.getElementById('inputData').value.trim();
+    const lines = raw.split('\n').filter(l => l.trim() && !l.startsWith('🌳') && !l.startsWith('1)') && !l.startsWith('2)') && !l.startsWith('🤩') && !l.startsWith('종합'));
+    
+    if(lines.length < 1) {
+        document.getElementById('output').textContent = '입력 데이터가 없습니다.';
         return;
     }
-
-    const lines = input.split('\n').filter(l => l.trim() !== '');
-    const dataLines = lines.slice(2, lines.findIndex(l => l.startsWith('종합')));
-    const 구역별합 = [];
-    const 종합 = {섭외자보유:0, 당일찾기:0, 당일섭외:0, 당일만남:0, 단계향상:0, 상담:0, 말씀:0, 센터:0};
-    const 이름칸 = {}; // 중복 체크
-    const 이름횟수 = {}; // .5 체크
-
-    const 칸이름 = ['섭외자보유','당일찾기','당일섭외','당일만남','단계향상','상담','말씀','센터'];
-
-    for(const line of dataLines){
-        const parts = line.split('/');
-        const 구역 = parts[0];
-        const 구역장 = parts[1];
-        const 칸데이터 = parts.slice(2);
-
-        if(칸데이터.length < 8) {
-            구역별합.push({구역, error:`${구역}구역 칸 개수가 부족합니다.`});
-            continue;
+    
+    let header = lines.shift().split('/');
+    let data = lines.map(l => l.split('/'));
+    
+    let totals = Array(header.length-2).fill(0);
+    let specialNames = { '말씀따기': [], '센터확답': [] };
+    let nameMap = {};
+    let errors = [];
+    
+    data.forEach(row => {
+        if(row.length != header.length){
+            errors.push(`${row[0]} 구역 칸 개수가 부족합니다.`);
+            return;
         }
-
-        const 구역합 = {};
-        칸데이터.forEach((칸, idx)=>{
+        for(let i=2;i<row.length;i++){
+            const colName = header[i];
+            const cell = row[i];
+            
             let sum = 0;
-            if(idx === 0){ // 섭외자보유
-                sum = parseFloat(칸.split('(')[0]) || 0;
-                종합['섭외자보유'] += sum;
-                구역합[칸이름[idx]] = sum;
+            const names = extractNamesWithNumbers(cell);
+            names.forEach(obj=>{
+                sum += obj.num;
+                if(!nameMap[obj.name]) nameMap[obj.name] = {};
+                if(!nameMap[obj.name][colName]) nameMap[obj.name][colName] = [];
+                nameMap[obj.name][colName].push({구역: row[0], num: obj.num});
+            });
+            
+            if(colName==='섭외자보유'){
+                const firstNum = cell.match(/\d+\.?\d*/);
+                totals[i-2] += firstNum ? parseFloat(firstNum[0]) : 0;
             } else {
-                // 숫자 추출
-                const regex = /([0-9]+(?:\.5)?)/g;
-                const matches = 칸.match(regex);
-                if(matches){
-                    sum = matches.reduce((a,b)=>a+parseFloat(b),0);
-                    종합[칸이름[idx]] += sum;
-                }
-                구역합[칸이름[idx]] = sum;
-
-                // 이름 추출(.5 포함)
-                const nameRegex = /([가-힣]+)(?:\.5)?/g;
-                let m;
-                while((m = nameRegex.exec(칸)) !== null){
-                    const name = m[1];
-                    if(!이름칸[name]) 이름칸[name] = [];
-                    이름칸[name].push({구역: 구역, 칸: 칸이름[idx]});
-
-                    if(!이름횟수[name]) 이름횟수[name] = 0;
-                    if(m[0].includes('.5')) 이름횟수[name]++;
-                }
+                totals[i-2] += sum;
             }
-        });
-        구역별합.push({구역, 구역장, ...구역합});
-    }
-
-    // 중복 체크
-    const 중복오류 = [];
-    for(const [name, occurrences] of Object.entries(이름칸)){
-        for(let i=0;i<occurrences.length;i++){
-            for(let j=i+1;j<occurrences.length;j++){
-                const a = occurrences[i];
-                const b = occurrences[j];
-                if(a.구역 === b.구역){
-                    if((a.칸==='당일찾기' && b.칸==='당일섭외') || (a.칸==='당일섭외' && b.칸==='당일찾기')) continue;
-                    중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
-                } else {
-                    if( (a.칸==='당일찾기' && b.칸==='당일섭외') || (a.칸==='당일섭외' && b.칸==='당일찾기') ) continue;
-                    if(a.칸 === b.칸) 중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
-                }
+            
+            if(colName==='말씀따기' || colName==='센터확답'){
+                names.forEach(obj=>{
+                    specialNames[colName].push(`${obj.name}${obj.num}`);
+                });
             }
-        }
-    }
-
-    // .5 규칙 체크
-    const 점오류 = [];
-    for(const [name, cnt] of Object.entries(이름횟수)){
-        if(cnt === 1) 점오류.push(`${name}가 .5로 딱 1번 등장`);
-    }
-
-    // 결과 출력
-    let resultText = '';
-    resultText += '■ 구역별·칸별 합계\n';
-    resultText += '구역 | 섭외자보유 | 당일찾기 | 당일섭외 | 당일만남 | 단계향상 | 상담 | 말씀 | 센터\n';
-    resultText += '----|----|----|----|----|----|----|----|----\n';
-    구역별합.forEach(g=>{
-        if(g.error){
-            resultText += `${g.error}\n`;
-        } else {
-            resultText += `${g.구역} | ${g.섭외자보유} | ${g.당일찾기} | ${g.당일섭외} | ${g.당일만남} | ${g.단계향상} | ${g.상담} | ${g.말씀} | ${g.센터}\n`;
         }
     });
-
-    resultText += '\n■ 칸별 총합\n';
-    for(const [k,v] of Object.entries(종합)){
-        resultText += `${k}: ${v}\n`;
+    
+    // 중복 검증
+    for(let name in nameMap){
+        for(let col in nameMap[name]){
+            const entries = nameMap[name][col];
+            if(entries.length > 1){
+                const totalNum = entries.reduce((a,b)=>a+b.num,0);
+                if(totalNum === 1) continue; // .5 단일 등장 허용
+                
+                let groups = {};
+                entries.forEach(e=>{
+                    if(!groups[e.구역]) groups[e.구역] = [];
+                    groups[e.구역].push(e);
+                });
+                let keys = Object.keys(groups);
+                if(keys.length>1){
+                    for(let i=0;i<keys.length;i++){
+                        for(let j=i+1;j<keys.length;j++){
+                            // 당일찾기/당일섭외 예외
+                            if((col==='당일찾기' && nameMap[name]['당일섭외']?.some(e=>e.구역===keys[i])) ||
+                               (col==='당일섭외' && nameMap[name]['당일찾기']?.some(e=>e.구역===keys[i]))) continue;
+                            errors.push(`${name}, ${keys[i]}(${col}) vs ${keys[j]}(${col})`);
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    if(중복오류.length>0){
-        resultText += '\n⚠️ 중복 오류:\n' + 중복오류.join('\n') + '\n';
-    } else {
-        resultText += '\n중복 오류 없음 ✅\n';
+    
+    if(errors.length>0){
+        document.getElementById('output').textContent = `오류: ${errors.join(' ')}`;
+        return;
     }
-
-    if(점오류.length>0){
-        resultText += '\n⚠️ .5 규칙 오류:\n' + 점오류.join('\n') + '\n';
-    }
-
-    output.textContent = resultText;
-    latestResult = resultText;
+    
+    // 오류 없으면 종합 결과 계산
+    let result = `종합/${totals.map((v,i)=>{
+        let colName = header[i+2];
+        if(colName==='말씀따기') return `${v}(${specialNames[colName].join(' ')})`;
+        if(colName==='센터확답') return `${v}(${specialNames[colName].join(' ')})`;
+        return v;
+    }).join('/')}`;
+    
+    document.getElementById('output').textContent = result;
 }
 
-function copyToClipboard() {
-    if(!latestResult) {
-        alert('먼저 계산 버튼을 눌러 결과를 생성해주세요.');
-        return;
-    }
-    navigator.clipboard.writeText(latestResult).then(()=>{
-        alert('✅ 결과가 복사되었습니다!');
-    }).catch(err=>{
-        alert('복사 실패: ' + err);
-    });
+function copyResult(){
+    const output = document.getElementById('output');
+    navigator.clipboard.writeText(output.textContent);
+    alert('결과가 클립보드에 복사되었습니다!');
 }
 </script>
-
 </body>
 </html>
