@@ -16,7 +16,7 @@
 
 <h2>🌳 일일 전도 활동 종합 계산기 🌳</h2>
 
-<textarea id="input" placeholder="여기에 일보를 붙여넣기"></textarea><br>
+<textarea id="input" placeholder="여기에 구역 데이터를 붙여넣기"></textarea><br>
 <button onclick="calculate()">종합 계산</button>
 <button onclick="copyResult()">결과 복사</button>
 
@@ -57,7 +57,7 @@ function calculate() {
             const num = parseFloat(match[1]);
             const names = match[2].split(' ').filter(n => n);
 
-            // 오류 체크는 섭외자보유 제외
+            // 합계 검증 (괄호 안 숫자 합)
             if (col !== '섭외자보유') {
                 const sum = names.reduce((acc,n) => acc + (parseFloat(n.split('.').pop())||1), 0);
                 if (Math.abs(sum - num) > 0.001) {
@@ -75,9 +75,12 @@ function calculate() {
 
                 if (!nameTracker[n]) nameTracker[n] = [];
                 const prev = nameTracker[n].find(e => {
-                    if (e.zone !== zone) return true; // 다른 구역이면 오류
-                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 같은 구역 당일 찾기/당일 섭외 중복 허용
-                    return e.col !== col; // 같은 구역 다른 칸이면 오류
+                    if (e.zone !== zone) return true; // 다른 구역 → 오류
+                    // 같은 구역 내 당일 찾기 ↔ 당일 섭외 → 허용
+                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false;
+                    // 같은 칸 → 허용
+                    if (e.col === col) return false;
+                    return true; // 같은 구역 다른 칸 → 오류
                 });
                 if (prev && col !== '섭외자보유') {
                     errors.push(`${n}: ${prev.col} vs ${col} 어디인가요`);
