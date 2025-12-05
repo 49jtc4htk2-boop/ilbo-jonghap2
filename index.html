@@ -59,7 +59,10 @@ function calculate() {
 
             // 합계 검증 (괄호 안 숫자 합)
             if (col !== '섭외자보유') {
-                const sum = names.reduce((acc,n) => acc + (parseFloat(n.split('.').pop())||1), 0);
+                const sum = names.reduce((acc,n) => {
+                    const m = n.match(/(\d+(\.\d+)?)$/);
+                    return acc + (m ? parseFloat(m[1]) : 1);
+                }, 0);
                 if (Math.abs(sum - num) > 0.001) {
                     errors.push(`${zone}구역 ${col} 합 다시 확인해주세요`);
                 }
@@ -67,7 +70,8 @@ function calculate() {
 
             // 이름별 체크
             names.forEach(n => {
-                const val = parseFloat(n.split('.').pop()) || 1;
+                const valMatch = n.match(/(\d+(\.\d+)?)$/);
+                const val = valMatch ? parseFloat(valMatch[1]) : 1;
 
                 if (val === 0.5) {
                     if (!singleHalfTracker[n]) singleHalfTracker[n] = [];
@@ -77,9 +81,8 @@ function calculate() {
                 if (!nameTracker[n]) nameTracker[n] = [];
                 const prev = nameTracker[n].find(e => {
                     if (e.zone !== zone) return true; // 다른 구역 → 오류
-                    // 같은 구역 내 허용 조건
                     if (e.col === col) return false; // 같은 칸 → 허용
-                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기 ↔ 당일 섭외 → 허용
+                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기↔섭외 → 허용
                     return true; // 같은 구역 다른 칸 → 오류
                 });
                 if (prev && col !== '섭외자보유') {
@@ -94,7 +97,7 @@ function calculate() {
             } else if (col === '말씀따기' || col === '센터확답') {
                 names.forEach(n => {
                     const key = n.replace(/\.\d+$/,'');
-                    const val = parseFloat(n.split('.').pop()) || 1;
+                    const val = valMatch ? parseFloat(valMatch[1]) : 1;
                     if (!summary[col][key]) summary[col][key] = 0;
                     summary[col][key] += val;
                 });
