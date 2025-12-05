@@ -3,142 +3,122 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>일일 전도 활동 종합 계산기</title>
+<title>일일 전도 활동 보고 종합</title>
 <style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f8ff; }
-  textarea { width: 100%; height: 300px; font-family: monospace; margin-bottom: 10px; }
-  button { padding: 10px 20px; font-size: 16px; margin-right: 10px; }
-  #result { white-space: pre-wrap; background: #e6f7ff; padding: 10px; border-radius: 5px; margin-top: 10px; }
-  .error { color: red; font-weight: bold; }
+body { font-family: Arial, sans-serif; padding: 20px; }
+textarea { width: 100%; height: 250px; font-family: monospace; margin-bottom: 10px; }
+button { padding: 10px 20px; margin-bottom: 20px; }
+pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
+.error { color: red; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<h2>🌳 일일 전도 활동 종합 계산기 🌳</h2>
+<h2>🌳 일일 전도 활동 보고 종합 🌳</h2>
 
-<textarea id="input" placeholder="여기에 구역 데이터를 붙여넣기"></textarea><br>
-<button onclick="calculate()">종합 계산</button>
-<button onclick="copyResult()">결과 복사</button>
+<p>여기에 보고 데이터를 붙여넣고 "계산" 버튼을 누르세요.</p>
+<textarea id="inputData" placeholder="여기에 보고 데이터를 붙여넣으세요"></textarea>
+<br>
+<button onclick="calculate()">계산</button>
 
-<div id="result"></div>
+<h3>종합 결과</h3>
+<pre id="output"></pre>
 
 <script>
 function calculate() {
-    const inputText = document.getElementById('input').value;
-    const lines = inputText.split('\n').map(l => l.trim())
-        .filter(l => l && !l.startsWith('🌳') && !l.startsWith('종합') && !l.startsWith('🤩') && !l.startsWith('1)') && !l.startsWith('2)'));
+    const input = document.getElementById('inputData').value.trim();
+    const output = document.getElementById('output');
+    output.textContent = '';
 
-    const columns = ['구역장','섭외자보유','당일 찾기','당일 섭외','당일 만남','당일 단계향상 만남','상담따기','말씀따기','센터확답'];
-    const errors = [];
-    const summary = {
-        '섭외자보유': 0,
-        '당일 찾기': 0,
-        '당일 섭외': 0,
-        '당일 만남': 0,
-        '당일 단계향상 만남': 0,
-        '상담따기': 0,
-        '말씀따기': {},
-        '센터확답': {}
-    };
-
-    const nameTracker = {}; 
-    const singleHalfTracker = {}; 
-
-    lines.forEach(line => {
-        const parts = line.split('/');
-        const zone = parts[0];
-
-        columns.forEach((col, idx) => {
-            const cell = parts[idx + 1];
-            if (!cell) return;
-
-            const match = cell.match(/^([\d.]+)\((.*)\)$/);
-            if (!match) return;
-
-            const num = parseFloat(match[1]);
-            const names = match[2].split(' ').filter(n => n);
-
-            // 합계 검증 (섭외자보유 제외)
-            if (col !== '섭외자보유') {
-                const sum = names.reduce((acc, n) => {
-                    const m = n.match(/(\d+(\.\d+)?)$/);
-                    return acc + (m ? parseFloat(m[1]) : 1);
-                }, 0);
-                if (Math.abs(sum - num) > 0.001) {
-                    errors.push(`${zone}구역 ${col} 합 다시 확인해주세요`);
-                }
-            }
-
-            // 이름 체크
-            names.forEach(n => {
-                const valMatch = n.match(/(\d+(\.\d+)?)$/);
-                const val = valMatch ? parseFloat(valMatch[1]) : 1;
-
-                if (val === 0.5) {
-                    if (!singleHalfTracker[n]) singleHalfTracker[n] = [];
-                    singleHalfTracker[n].push(zone);
-                }
-
-                if (!nameTracker[n]) nameTracker[n] = [];
-                const prev = nameTracker[n].find(e => {
-                    if (e.zone !== zone) return true; // 다른 구역 → 오류
-                    if (e.col === col) return false; // 같은 구역, 같은 칸 → 허용
-                    if ((e.col === '당일 찾기' && col === '당일 섭외') || (e.col === '당일 섭외' && col === '당일 찾기')) return false; // 당일 찾기↔섭외 허용
-                    return true; // 같은 구역 다른 칸 → 오류
-                });
-                if (prev && col !== '섭외자보유') {
-                    errors.push(`${n}: ${prev.col} vs ${col} 어디인가요`);
-                }
-                nameTracker[n].push({ zone, col });
-            });
-
-            // 종합 계산
-            if (['섭외자보유','당일 찾기','당일 섭외','당일 만남','당일 단계향상 만남','상담따기'].includes(col)) {
-                summary[col] += num;
-            } else if (col === '말씀따기' || col === '센터확답') {
-                names.forEach(n => {
-                    const key = n.replace(/\.\d+$/,'');
-                    const val = valMatch ? parseFloat(valMatch[1]) : 1;
-                    if (!summary[col][key]) summary[col][key] = 0;
-                    summary[col][key] += val;
-                });
-            }
-        });
-    });
-
-    // .5 단 1번만 등장 체크
-    for (let n in singleHalfTracker) {
-        if (singleHalfTracker[n].length === 1) {
-            errors.push(`${singleHalfTracker[n][0]}구역의 "${n}"는 어떤 구역과 함께 하셨나요?`);
-        }
-    }
-
-    const resultDiv = document.getElementById('result');
-
-    if (errors.length > 0) {
-        resultDiv.innerHTML = errors.map(e => '⚠ ' + e).join('\n');
-        resultDiv.classList.add('error');
+    if(!input) {
+        output.textContent = '데이터를 입력해주세요.';
         return;
     }
 
-    // 정상 종합 출력
-    const 말씀Sum = Object.values(summary['말씀따기']).reduce((a,b)=>a+b,0);
-    const 말씀Names = Object.entries(summary['말씀따기']).map(([k,v])=>`${k}${v}`).join(' ');
-    const 센터Sum = Object.values(summary['센터확답']).reduce((a,b)=>a+b,0);
-    const 센터Names = Object.entries(summary['센터확답']).map(([k,v])=>`${k}${v}`).join(' ');
+    const lines = input.split('\n').filter(l => l.trim() !== '');
+    const dataLines = lines.slice(2, lines.findIndex(l => l.startsWith('종합'))); // 구역 데이터
+    const results = [];
+    let 종합 = {섭외자보유:0, 당일찾기:0, 당일섭외:0, 당일만남:0, 단계향상:0, 상담:0, 말씀:0, 센터:0};
+    const 이름칸 = {}; // 중복 체크
 
-    const finalText = `${summary['섭외자보유']}/${summary['당일 찾기']}/${summary['당일 섭외']}/${summary['당일 만남']}/${summary['당일 단계향상 만남']}/${summary['상담따기']}/${말씀Sum}(${말씀Names})/${센터Sum}(${센터Names})`;
+    const 칸이름 = ['섭외자보유','당일찾기','당일섭외','당일만남','단계향상','상담','말씀','센터'];
 
-    resultDiv.innerHTML = finalText;
-    resultDiv.classList.remove('error');
-}
+    for(const line of dataLines) {
+        const parts = line.split('/');
+        const 구역 = parts[0];
+        const 구역장 = parts[1];
+        const 칸데이터 = parts.slice(2);
 
-function copyResult() {
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv.innerText) return;
-    navigator.clipboard.writeText(resultDiv.innerText).then(() => {
-        alert('결과가 복사되었습니다!');
-    });
+        if(칸데이터.length < 8) {
+            results.push(`A구역 칸 개수가 부족합니다.`);
+            continue;
+        }
+
+        칸데이터.forEach((칸, idx) => {
+            // 섭외자보유는 괄호 무시, 숫자만 합산
+            let sum = 0;
+            const names = [];
+            if(idx === 0) { // 섭외자보유
+                const num = parseFloat(칸.split('(')[0]) || 0;
+                sum = num;
+                종합['섭외자보유'] += sum;
+            } else {
+                // 숫자 추출
+                const regex = /([0-9]+(?:\.5)?)/g;
+                const matches = 칸.match(regex);
+                if(matches) {
+                    sum = matches.reduce((a,b)=>a+parseFloat(b),0);
+                    switch(idx) {
+                        case 1: 종합['당일찾기'] += sum; break;
+                        case 2: 종합['당일섭외'] += sum; break;
+                        case 3: 종합['당일만남'] += sum; break;
+                        case 4: 종합['단계향상'] += sum; break;
+                        case 5: 종합['상담'] += sum; break;
+                        case 6: 종합['말씀'] += sum; break;
+                        case 7: 종합['센터'] += sum; break;
+                    }
+                }
+                // 이름 추출(.5 포함)
+                const nameRegex = /([가-힣]+)(?:\.5)?/g;
+                let m;
+                while((m = nameRegex.exec(칸)) !== null){
+                    const name = m[1];
+                    if(!이름칸[name]) 이름칸[name] = [];
+                    이름칸[name].push({구역: 구역, 칸: 칸이름[idx]});
+                }
+            }
+        });
+    }
+
+    // 중복 체크
+    const 중복오류 = [];
+    for(const [name, occurrences] of Object.entries(이름칸)) {
+        for(let i=0;i<occurrences.length;i++){
+            for(let j=i+1;j<occurrences.length;j++){
+                const a = occurrences[i];
+                const b = occurrences[j];
+                if(a.구역 === b.구역){
+                    // 같은 구역 내 당일찾기 vs 당일섭외는 허용
+                    if((a.칸==='당일찾기' && b.칸==='당일섭외') || (a.칸==='당일섭외' && b.칸==='당일찾기')) continue;
+                    중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
+                } else {
+                    if(a.칸 !== b.칸) 중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
+                }
+            }
+        }
+    }
+
+    // 결과 출력
+    let resultText = '종합:\n';
+    resultText += `섭외자보유: ${종합['섭외자보유']}, 당일찾기: ${종합['당일찾기']}, 당일섭외: ${종합['당일섭외']}, 당일만남: ${종합['당일만남']}, 단계향상: ${종합['단계향상']}, 상담: ${종합['상담']}, 말씀: ${종합['말씀']}, 센터: ${종합['센터']}\n\n`;
+
+    if(중복오류.length>0){
+        resultText += '⚠️ 중복 오류:\n' + 중복오류.join('\n') + '\n';
+    } else {
+        resultText += '중복 오류 없음 ✅\n';
+    }
+
+    output.textContent = resultText;
 }
 </script>
 
