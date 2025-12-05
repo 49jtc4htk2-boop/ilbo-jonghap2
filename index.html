@@ -5,137 +5,122 @@
 <title>일일 전도 활동 종합 계산기</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 10px; }
-h2 { text-align: center; margin-bottom: 6px; }
-.notice {
-  background:#fff3cd;
-  border:1px solid #ffeeba;
-  border-radius:5px;
-  padding:8px;
-  font-size:13px;
-  margin-bottom:10px;
-  line-height:1.4;
-}
-textarea { width: 100%; height: 260px; font-size: 15px; padding: 10px; margin-bottom: 10px; resize: vertical; }
-button { width: 100%; font-size: 16px; padding: 10px; margin: 5px 0; cursor: pointer; border: none; border-radius: 5px; background: #4CAF50; color: white; }
-button:hover { background: #45a049; }
-#result { margin-top: 10px; font-weight: bold; font-size: 16px; background: #fff; padding: 10px; border-radius: 5px; word-break: break-word; white-space: pre-line; }
+body { font-family: Arial, sans-serif; background:#f5f5f5; padding:10px;}
+h2 { text-align:center; margin-bottom:10px;}
+textarea { width:100%; height:260px; font-size:16px; padding:10px; }
+button { width:100%; font-size:16px; padding:10px; margin-top:6px; border:none; border-radius:5px; background:#4CAF50; color:#fff;}
+#result { margin-top:10px; background:#fff; padding:10px; border-radius:5px; font-weight:bold; }
 </style>
 </head>
 <body>
 
 <h2>일일 전도 활동 종합 계산기</h2>
 
-<div class="notice">
-❗ <b>오류가 표시되는 경우</b><br>
-• 같은 이름이 서로 다른 <b>활동 칸</b>에 등장한 경우<br>
-• <b>.5</b>가 한 번만 등장해 함께한 구역 확인이 필요한 경우<br>
-• 줄에 필요한 칸 수가 부족한 경우<br>
-→ 오류가 있으면 <b>종합은 출력되지 않습니다</b>.
-</div>
-
-<textarea id="inputText" placeholder="일보 텍스트를 그대로 붙여넣기"></textarea>
-<button id="calculateBtn">종합하기</button>
+<textarea id="inputText" placeholder="일보 텍스트 붙여넣기"></textarea>
+<button onclick="calculate()">종합하기</button>
 <div id="result"></div>
-<button id="copyBtn">결과 복사</button>
+<button onclick="copyResult()">결과 복사</button>
 
 <script>
-const COL_NAMES = {
-  2:"섭외자보유", 3:"당일 찾기", 4:"당일 섭외", 5:"당일 만남",
-  6:"단계향상 만남", 7:"상담따기", 8:"말씀따기", 9:"센터확답"
-};
+const COLS = ["섭외자보유","당일 찾기","당일 섭외","당일 만남","단계향상 만남","상담따기","말씀따기","센터확답"];
+const CHECK_COLS = [1,2,3,4,5,6,7]; // 충돌 검사 대상 (섭외자보유 제외)
 
-document.getElementById("calculateBtn").onclick = () => {
+function calculate(){
   const text = document.getElementById("inputText").value;
   const lines = text.split(/\r?\n/);
 
   const sums = Array(8).fill(0);
-  const appearMap = {};
-  const halfCount = {};
-  const talkie = {};
+  const appear = {};  // name -> [{row,col}]
+  const half = {};
+  const word = {};
   const center = {};
-  const errors = [];
 
-  lines.forEach((line, idx) => {
-    if(!/^\d+\//.test(line)) return;
-    const p = line.split("/");
+  lines.forEach((line, row)=>{
+    if(!line.match(/^\d+\//)) return;
+    const parts = line.split("/");
 
-    if(p.length < 10){
-      errors.push(`${idx+1}번 줄: 칸 부족`);
-      return;
-    }
+    parts.slice(2,10).forEach((cell, idx)=>{
+      if(!cell) return;
 
-    for(let i=2;i<=9;i++){
-      const cell = p[i];
-      if(!cell) continue;
+      const num = cell.match(/^([\d.]+)/);
+      if(num) sums[idx] += parseFloat(num[1]);
 
-      const num = cell.match(/^(\d+(\.\d+)?)/);
-      if(num) sums[i-2]+=parseFloat(num[1]);
+      const names = [...cell.matchAll(/([가-힣]+)(\.\d)?/g)];
+      names.forEach(m=>{
+        const name = m[1];
+        const isHalf = m[2];
 
-      const names = cell.match(/\(([^)]+)\)/);
-      if(!names) continue;
-
-      names[1].split(" ").forEach(n=>{
-        if(n.includes(".5")){
-          halfCount[n]=(halfCount[n]||0)+1;
+        if(isHalf){
+          half[name] = (half[name]||0)+1;
         }
 
-        if(i!==2){
-          appearMap[n]=appearMap[n]||{};
-          appearMap[n][i]=true;
+        if(idx===6){
+          word[name] = (word[name]||0)+(isHalf?0.5:1);
+        }
+        if(idx===7){
+          center[name] = (center[name]||0)+(isHalf?0.5:1);
         }
 
-        if(i===8){
-          const key=n.replace(/[^가-힣]/g,"");
-          talkie[key]=(talkie[key]||0)+(n.includes(".5")?0.5:1);
-        }
-        if(i===9){
-          const key=n.replace(/[^가-힣]/g,"");
-          center[key]=(center[key]||0)+(n.includes(".5")?0.5:1);
-        }
+        appear[name] ??= [];
+        appear[name].push({row, col:idx});
       });
-    }
+    });
   });
 
-  for(const n in appearMap){
-    const cols=Object.keys(appearMap[n]);
-    if(cols.length>1){
-      errors.push(`${n}: ${COL_NAMES[cols[0]]} vs ${COL_NAMES[cols[1]]}`);
-    }
+  const errors = [];
+
+  // 다른 줄 + 다른 칸 충돌
+  for(const name in appear){
+    const items = appear[name]
+      .filter(o=>CHECK_COLS.includes(o.col));
+
+    items.forEach(a=>{
+      items.forEach(b=>{
+        if(a.row!==b.row && a.col!==b.col){
+          errors.push(
+            `${name} (${a.row+1}구역 ${COLS[a.col]} ↔ ${b.row+1}구역 ${COLS[b.col]})`
+          );
+        }
+      });
+    });
   }
 
-  for(const n in halfCount){
-    if(halfCount[n]===1){
-      errors.push(`${n}는 어떤 구역과 함께 하셨나요?`);
+  // .5 단독
+  for(const name in half){
+    if(half[name]===1){
+      errors.push(`"${name}.5"는 어떤 구역과 함께 하셨나요?`);
     }
   }
 
   if(errors.length){
-    document.getElementById("result").innerText="오류:\n"+errors.join("\n");
+    document.getElementById("result").innerText =
+      "오류:\n" + [...new Set(errors)].join("\n");
     return;
   }
 
-  const rounded=sums.map(v=>Math.round(v));
-  rounded[4]=Math.floor(sums[4]);
+  // 정수화
+  for(let i=0;i<sums.length;i++) sums[i] = Math.round(sums[i]);
 
-  let result=`종합/${rounded.join("/")}`;
+  const wordText = Object.entries(word)
+    .map(([n,v])=>`${n}${v}`).join(" ");
+  const centerText = Object.entries(center)
+    .map(([n,v])=>`${n}${v}`).join(" ");
 
-  const nameSum = obj =>
-    Object.keys(obj).length
-      ? " ("+Object.entries(obj).map(([k,v])=>`${k}${v}`).join(" ")+")"
-      : "";
+  const result =
+    "종합/" +
+    sums.slice(0,6).join("/") + "/" +
+    sums[6] + (wordText?`(${wordText})`:"") + "/" +
+    sums[7] + (centerText?`(${centerText})`:"");
 
-  result += nameSum(talkie);
-  result += nameSum(center);
+  document.getElementById("result").innerText = result;
+}
 
-  document.getElementById("result").innerText=result;
-};
-
-document.getElementById("copyBtn").onclick=()=>{
-  const t=document.getElementById("result").innerText;
-  navigator.clipboard.writeText(t);
-  alert("복사되었습니다!");
-};
+function copyResult(){
+  navigator.clipboard.writeText(
+    document.getElementById("result").innerText
+  );
+  alert("복사 완료");
+}
 </script>
 
 </body>
