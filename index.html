@@ -21,6 +21,13 @@
 </head>
 <body>
   <h1>🌳 일일 전도 활동 종합 🌳 </h1>
+  </script>
+  <div id="error-info" class="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded">
+    <strong>※ 오류 안내</strong><br>
+    - 구역별 칸이 10개가 아닌 경우<br>
+    - 괄호 앞 숫자와 괄호 안 숫자 합이 다른 경우.<br>
+    - 동일 인물이 서로 다른 구역/칸인 경우<br>
+  </div>
 
   <textarea id="input" placeholder="여기에 일보 전체 텍스트 붙여넣기"></textarea>
 
@@ -32,7 +39,6 @@
 
   <h3 style="margin-top:16px">결과</h3>
   <div id="resultArea">
-    <pre id="result">(아직 계산하지 않음)</pre>
   </div>
 
   <script>
@@ -322,12 +328,6 @@
     document.getElementById('input').value = '';
     document.getElementById('result').textContent = '(아직 계산하지 않음)';
   });
-  </script>
-  <div id="error-info" class="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded">
-    <strong>※ 오류 안내</strong><br>
-    - 구역별 칸이 10개가 아닌 경우<br>
-    - 괄호 앞 숫자와 괄호 안 숫자 합이 다른 경우.<br>
-    - 동일 인물이 서로 다른 구역/칸인 경우<br>
-  </div>
+  
 </body>
 </html>
