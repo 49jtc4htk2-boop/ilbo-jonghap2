@@ -7,28 +7,34 @@
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; }
 textarea { width: 100%; height: 250px; font-family: monospace; margin-bottom: 10px; }
-button { padding: 10px 20px; margin-bottom: 20px; }
+button { padding: 10px 20px; margin-bottom: 10px; }
 pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
 .error { color: red; font-weight: bold; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+td, th { border: 1px solid #ccc; padding: 5px; text-align: center; }
+th { background: #eee; }
 </style>
 </head>
 <body>
 
-<h2>🌳 일일 전도 활동 보고 종합 🌳</h2>
+<h2>🌳 일일 전도 활동 보고 종합 (칸별) 🌳</h2>
 
-<p>여기에 보고 데이터를 붙여넣고 "계산" 버튼을 누르세요.</p>
 <textarea id="inputData" placeholder="여기에 보고 데이터를 붙여넣으세요"></textarea>
 <br>
 <button onclick="calculate()">계산</button>
+<button onclick="copyToClipboard()">결과 복사하기</button>
 
-<h3>종합 결과</h3>
+<h3>결과</h3>
 <pre id="output"></pre>
 
 <script>
+let latestResult = '';
+
 function calculate() {
     const input = document.getElementById('inputData').value.trim();
     const output = document.getElementById('output');
     output.textContent = '';
+    latestResult = '';
 
     if(!input) {
         output.textContent = '데이터를 입력해주세요.';
@@ -36,48 +42,42 @@ function calculate() {
     }
 
     const lines = input.split('\n').filter(l => l.trim() !== '');
-    const dataLines = lines.slice(2, lines.findIndex(l => l.startsWith('종합'))); // 구역 데이터
-    const results = [];
-    let 종합 = {섭외자보유:0, 당일찾기:0, 당일섭외:0, 당일만남:0, 단계향상:0, 상담:0, 말씀:0, 센터:0};
+    const dataLines = lines.slice(2, lines.findIndex(l => l.startsWith('종합')));
+    const 구역별합 = [];
+    const 종합 = {섭외자보유:0, 당일찾기:0, 당일섭외:0, 당일만남:0, 단계향상:0, 상담:0, 말씀:0, 센터:0};
     const 이름칸 = {}; // 중복 체크
+    const 이름횟수 = {}; // .5 체크
 
     const 칸이름 = ['섭외자보유','당일찾기','당일섭외','당일만남','단계향상','상담','말씀','센터'];
 
-    for(const line of dataLines) {
+    for(const line of dataLines){
         const parts = line.split('/');
         const 구역 = parts[0];
         const 구역장 = parts[1];
         const 칸데이터 = parts.slice(2);
 
         if(칸데이터.length < 8) {
-            results.push(`A구역 칸 개수가 부족합니다.`);
+            구역별합.push({구역, error:`${구역}구역 칸 개수가 부족합니다.`});
             continue;
         }
 
-        칸데이터.forEach((칸, idx) => {
-            // 섭외자보유는 괄호 무시, 숫자만 합산
+        const 구역합 = {};
+        칸데이터.forEach((칸, idx)=>{
             let sum = 0;
-            const names = [];
-            if(idx === 0) { // 섭외자보유
-                const num = parseFloat(칸.split('(')[0]) || 0;
-                sum = num;
+            if(idx === 0){ // 섭외자보유
+                sum = parseFloat(칸.split('(')[0]) || 0;
                 종합['섭외자보유'] += sum;
+                구역합[칸이름[idx]] = sum;
             } else {
                 // 숫자 추출
                 const regex = /([0-9]+(?:\.5)?)/g;
                 const matches = 칸.match(regex);
-                if(matches) {
+                if(matches){
                     sum = matches.reduce((a,b)=>a+parseFloat(b),0);
-                    switch(idx) {
-                        case 1: 종합['당일찾기'] += sum; break;
-                        case 2: 종합['당일섭외'] += sum; break;
-                        case 3: 종합['당일만남'] += sum; break;
-                        case 4: 종합['단계향상'] += sum; break;
-                        case 5: 종합['상담'] += sum; break;
-                        case 6: 종합['말씀'] += sum; break;
-                        case 7: 종합['센터'] += sum; break;
-                    }
+                    종합[칸이름[idx]] += sum;
                 }
+                구역합[칸이름[idx]] = sum;
+
                 // 이름 추출(.5 포함)
                 const nameRegex = /([가-힣]+)(?:\.5)?/g;
                 let m;
@@ -85,40 +85,81 @@ function calculate() {
                     const name = m[1];
                     if(!이름칸[name]) 이름칸[name] = [];
                     이름칸[name].push({구역: 구역, 칸: 칸이름[idx]});
+
+                    if(!이름횟수[name]) 이름횟수[name] = 0;
+                    if(m[0].includes('.5')) 이름횟수[name]++;
                 }
             }
         });
+        구역별합.push({구역, 구역장, ...구역합});
     }
 
     // 중복 체크
     const 중복오류 = [];
-    for(const [name, occurrences] of Object.entries(이름칸)) {
+    for(const [name, occurrences] of Object.entries(이름칸)){
         for(let i=0;i<occurrences.length;i++){
             for(let j=i+1;j<occurrences.length;j++){
                 const a = occurrences[i];
                 const b = occurrences[j];
                 if(a.구역 === b.구역){
-                    // 같은 구역 내 당일찾기 vs 당일섭외는 허용
                     if((a.칸==='당일찾기' && b.칸==='당일섭외') || (a.칸==='당일섭외' && b.칸==='당일찾기')) continue;
                     중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
                 } else {
-                    if(a.칸 !== b.칸) 중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
+                    if( (a.칸==='당일찾기' && b.칸==='당일섭외') || (a.칸==='당일섭외' && b.칸==='당일찾기') ) continue;
+                    if(a.칸 === b.칸) 중복오류.push(`${name}, ${a.구역}(${a.칸}) vs ${b.구역}(${b.칸})`);
                 }
             }
         }
     }
 
+    // .5 규칙 체크
+    const 점오류 = [];
+    for(const [name, cnt] of Object.entries(이름횟수)){
+        if(cnt === 1) 점오류.push(`${name}가 .5로 딱 1번 등장`);
+    }
+
     // 결과 출력
-    let resultText = '종합:\n';
-    resultText += `섭외자보유: ${종합['섭외자보유']}, 당일찾기: ${종합['당일찾기']}, 당일섭외: ${종합['당일섭외']}, 당일만남: ${종합['당일만남']}, 단계향상: ${종합['단계향상']}, 상담: ${종합['상담']}, 말씀: ${종합['말씀']}, 센터: ${종합['센터']}\n\n`;
+    let resultText = '';
+    resultText += '■ 구역별·칸별 합계\n';
+    resultText += '구역 | 섭외자보유 | 당일찾기 | 당일섭외 | 당일만남 | 단계향상 | 상담 | 말씀 | 센터\n';
+    resultText += '----|----|----|----|----|----|----|----|----\n';
+    구역별합.forEach(g=>{
+        if(g.error){
+            resultText += `${g.error}\n`;
+        } else {
+            resultText += `${g.구역} | ${g.섭외자보유} | ${g.당일찾기} | ${g.당일섭외} | ${g.당일만남} | ${g.단계향상} | ${g.상담} | ${g.말씀} | ${g.센터}\n`;
+        }
+    });
+
+    resultText += '\n■ 칸별 총합\n';
+    for(const [k,v] of Object.entries(종합)){
+        resultText += `${k}: ${v}\n`;
+    }
 
     if(중복오류.length>0){
-        resultText += '⚠️ 중복 오류:\n' + 중복오류.join('\n') + '\n';
+        resultText += '\n⚠️ 중복 오류:\n' + 중복오류.join('\n') + '\n';
     } else {
-        resultText += '중복 오류 없음 ✅\n';
+        resultText += '\n중복 오류 없음 ✅\n';
+    }
+
+    if(점오류.length>0){
+        resultText += '\n⚠️ .5 규칙 오류:\n' + 점오류.join('\n') + '\n';
     }
 
     output.textContent = resultText;
+    latestResult = resultText;
+}
+
+function copyToClipboard() {
+    if(!latestResult) {
+        alert('먼저 계산 버튼을 눌러 결과를 생성해주세요.');
+        return;
+    }
+    navigator.clipboard.writeText(latestResult).then(()=>{
+        alert('결과가 클립보드에 복사되었습니다!');
+    }).catch(err=>{
+        alert('복사 실패: ' + err);
+    });
 }
 </script>
 
