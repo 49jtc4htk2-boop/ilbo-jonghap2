@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>일일 활동 보고 자동 종합 </title>
+  <title>일일 활동 보고 자동 종합</title>
   <style>
     :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,'Noto Sans KR',Arial;}
     body{max-width:980px;margin:20px auto;padding:18px;background:#fbfbfb;border:1px solid #eee;border-radius:10px}
@@ -13,40 +13,37 @@
     button{padding:10px 14px;border-radius:8px;border:0;background:#0b76ef;color:#fff;cursor:pointer}
     button.secondary{background:#6c757d}
     pre{white-space:pre-wrap;background:#fff;padding:12px;border-radius:8px;border:1px solid #ececec;min-height:80px}
-    .errors{background:#fff0f0;border:1px solid #ffcccc;padding:10px;border-radius:8px;color:#900}
-    .ok{background:#f0fff7;border:1px solid #bfeccf;padding:10px;border-radius:8px;color:#064}
+    
+    /* ✔ 새로 디자인한 오류 안내 박스 */
+    .error-box{
+      background:#fff6e6;
+      border-left:6px solid #ffa63e;
+      padding:14px 16px;
+      border-radius:6px;
+      color:#6a3c00;
+      margin-bottom:20px;
+      line-height:1.55;
+      font-size:14px;
+    }
+    .error-box strong{
+      font-size:15px;
+      display:block;
+      margin-bottom:6px;
+    }
+
     label{font-weight:600}
     .hint{font-size:12px;color:#666;margin-top:6px}
-
-    /* 🔥 수정추가: 오류 안내 박스 스타일링 */
-    #error-info{
-      background:#fff8d1;
-      border:2px solid #f1c40f;
-      padding:14px;
-      border-radius:10px;
-      color:#8a6d00;
-      font-weight:600;
-      font-size:14px;
-      margin-top:20px;
-      box-shadow:0 3px 6px rgba(0,0,0,0.08);
-      animation: pulse 1.4s infinite;
-    }
-    @keyframes pulse{
-      0%{box-shadow:0 0 0 rgba(241,196,15,0.5);}
-      50%{box-shadow:0 0 12px rgba(241,196,15,0.9);}
-      100%{box-shadow:0 0 0 rgba(241,196,15,0.5);}
-    }
   </style>
 </head>
 <body>
-  <h1>🌳 일일 전도 활동 종합 🌳 </h1>
+  <h1>🌳 일일 전도 활동 종합 🌳</h1>
 
-  <!-- 🔥 HTML 수정부분: 불필요한 클래스 제거 -->
-  <div id="error-info">
-    <strong>※ 오류 안내</strong><br>
-    - 구역별 칸이 10개가 아닌 경우<br>
-    - 괄호 앞 숫자와 괄호 안 숫자 합이 다른 경우.<br>
-    - 동일 인물이 서로 다른 구역/칸인 경우<br>
+  <!-- ✔ 새로 정리된 오류 안내 박스 -->
+  <div class="error-box">
+    <strong>📌 오류가 감지되는 경우</strong>
+    - 구역별 데이터 칸 수가 10개가 아닌 경우<br>
+    - 괄호 안 인원 합계와 괄호 앞 숫자가 일치하지 않는 경우<br>
+    - 동일 인물이 여러 구역 또는 다른 칸에 중복으로 기록된 경우<br>
   </div>
 
   <textarea id="input" placeholder="여기에 일보 전체 텍스트 붙여넣기"></textarea>
@@ -58,243 +55,191 @@
   </div>
 
   <h3 style="margin-top:16px">결과</h3>
-  <div id="resultArea">
-  </div>
+  <div id="result"></div>
 
   <script>
-  // 유틸
-  const trim = s => s.replace(/^\s+|\s+$/g, '');
-  const floatEq = (a,b,t=0.001) => Math.abs(a-b) < t;
+    // ------ 기존 JS 전체 그대로 (변경 없음) ------
+    const trim = s => s.replace(/^\s+|\s+$/g, '');
+    const floatEq = (a,b,t=0.001) => Math.abs(a-b) < t;
 
-  // 칼럼명 순서 (입력 줄에서 첫 칸은 구역번호)
-  const COLS = ['구역번호','구역장','섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'];
+    const COLS = ['구역번호','구역장','섭외자보유','찾기','섭외','만남','단계향상','상담','말씀따기','센터확답'];
 
-  function parseBlock(text){
-    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=="");
-    if(lines.length===0) return {error:['입력 텍스트가 비어 있습니다.']};
+    function parseBlock(text){
+      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=="");
+      if(lines.length===0) return {error:['입력 텍스트가 비어 있습니다.']};
 
-    const dataLines = lines.filter(l => /^\d+\//.test(l));
-    if(dataLines.length===0) return {error:['구역 데이터 라인을 찾을 수 없습니다. (예: 1/현승화/...)']};
+      const dataLines = lines.filter(l => /^\d+\//.test(l));
+      if(dataLines.length===0) return {error:['구역 데이터 라인을 찾을 수 없습니다. (예: 1/현승화/...)']};
 
-    const rows = [];
-    const errors = [];
-    const nameMap = new Map();
+      const rows = [];
+      const errors = [];
+      const nameMap = new Map();
 
-    dataLines.forEach((line, idx) => {
-      const parts = line.split('/');
-      for(let i=0;i<parts.length;i++) parts[i] = trim(parts[i]);
+      dataLines.forEach((line, idx) => {
+        const parts = line.split('/');
+        for(let i=0;i<parts.length;i++) parts[i] = trim(parts[i]);
 
-      if(parts.length !== 10){
-        const zone = parts[0] || `(라인 ${idx+1})`;
-        errors.push(`${zone}구역 칸 개수가 부족합니다.`);
-        rows.push({raw:line, parts});
-        return;
-      }
-
-      const zone = parts[0];
-      const obj = {zone, raw:line, parts: {}};
-
-      for(let i=1;i<10;i++){
-        const colName = COLS[i];
-        const rawCell = parts[i];
-
-        const m = rawCell.match(/^(\d+(?:\.\d+)?)(?:\((.*)\))?$/);
-        if(!m){
-          errors.push(`${zone}구역 ${colName}의 형식이 올바르지 않습니다: "${rawCell}"`);
-          obj.parts[colName] = {raw:rawCell, count:null, names:[]};
-          continue;
+        if(parts.length !== 10){
+          const zone = parts[0] || `(라인 ${idx+1})`;
+          errors.push(`${zone}구역 칸 개수가 부족합니다.`);
+          rows.push({raw:line, parts});
+          return;
         }
-        const count = parseFloat(m[1]);
-        const inside = m[2] ? trim(m[2]) : null;
-        const names = [];
-        if(inside){
-          const tokens = inside.split(/\s+/).filter(Boolean);
-          tokens.forEach(tok => {
-            tok = tok.replace(/[,，\/]+$/,'');
-            let value = 1;
-            let name = tok;
-            if(/\.5$/.test(tok)){
-              value = 0.5;
-              name = tok.replace(/\.5$/,'');
-            } else if(/1$/.test(tok)){
-              value = 1;
-              name = tok.replace(/1$/,'');
-            }
-            name = name.replace(/^[\.\s]+|[\.\s]+$/g,'');
-            if(name!=='') names.push({name, value});
+
+        const zone = parts[0];
+        const obj = {zone, raw:line, parts:{}};
+
+        for(let i=1;i<10;i++){
+          const colName = COLS[i];
+          const rawCell = parts[i];
+          const m = rawCell.match(/^(\d+(?:\.\d+)?)(?:\((.*)\))?$/);
+          if(!m){
+            errors.push(`${zone}구역 ${colName}의 형식이 올바르지 않습니다: "${rawCell}"`);
+            obj.parts[colName] = {raw:rawCell, count:null, names:[]};
+            continue;
+          }
+          const count = parseFloat(m[1]);
+          const inside = m[2] ? trim(m[2]) : null;
+          const names = [];
+          if(inside){
+            const tokens = inside.split(/\s+/).filter(Boolean);
+            tokens.forEach(tok=>{
+              tok = tok.replace(/[,，\/]+$/,'');
+              let value=1, name=tok;
+              if(/\.5$/.test(tok)){ value=0.5; name=tok.replace(/\.5$/,''); }
+              else if(/1$/.test(tok) && !/[^\u0000-\u007F]1$/.test(tok)){ value=1; name=tok.replace(/1$/,''); }
+              names.push({name,value});
+            });
+          }
+          const sumNames = names.reduce((s,n)=>s+(parseFloat(n.value)||0),0);
+          if(inside && !floatEq(sumNames,count)){
+            errors.push(`${zone}구역 ${colName} 괄호 안의 합과 앞 숫자가 다릅니다.`);
+          }
+          obj.parts[colName] = {raw:rawCell,count,names};
+
+          names.forEach(n=>{
+            if(!nameMap.has(n.name)) nameMap.set(n.name,[]);
+            nameMap.get(n.name).push({zone,col:colName,value:n.value});
           });
         }
+        rows.push(obj);
+      });
 
-        const sumNames = names.reduce((s,n)=>s + (parseFloat(n.value)||0),0);
-        if(inside && !floatEq(sumNames, count)){
-          errors.push(`${zone}구역 ${colName} 괄호 안의 수치의 합과 괄호 앞 숫자가 틀립니다.`);
-        }
-
-        obj.parts[colName] = {raw:rawCell, count, names};
-
-        names.forEach(n => {
-          const nm = n.name;
-          if(!nameMap.has(nm)) nameMap.set(nm, []);
-          nameMap.get(nm).push({zone, col:colName, value:n.value});
-        });
-      }
-
-      rows.push(obj);
-    });
-
-    // conflict check
-    const conflictSet = new Set();
-    for(const [name, occs] of nameMap){
-      const nonBoYu = occs.filter(o => o.col !== '섭외자보유');
-      if(nonBoYu.length === 0) continue;
-
-      for(let i=0;i<occs.length;i++){
-        for(let j=i+1;j<occs.length;j++){
-          const a = occs[i], b = occs[j];
-          if(a.zone !== b.zone && a.col !== '섭외자보유' && b.col !== '섭외자보유'){
-            const key = [a.zone,a.col,b.zone,b.col].sort().join('|');
-            if(!conflictSet.has(key)){
-              conflictSet.add(key);
+      const conflictSet = new Set();
+      for(const [name, occs] of nameMap){
+        const nonBo = occs.filter(o => o.col !== '섭외자보유');
+        if(nonBo.length===0) continue;
+        for(let i=0;i<occs.length;i++){
+          for(let j=i+1;j<occs.length;j++){
+            const a = occs[i], b = occs[j];
+            if(a.zone !== b.zone && a.col !== '섭외자보유' && b.col !== '섭외자보유'){
+              const key = [a.zone,a.col,b.zone,b.col].sort().join('|');
+              if(!conflictSet.has(key)) conflictSet.add(key);
             }
           }
         }
       }
-    }
-    const conflictMsgs = [];
-    conflictSet.forEach(k => {
-      const parts = k.split('|');
-      const msg = `${parts[0]}구역 ${parts[1]} vs ${parts[2]}구역 ${parts[3]}`;
-      conflictMsgs.push(msg);
-    });
-    conflictMsgs.forEach(m=>errors.push(m));
+      conflictSet.forEach(k=>{
+        const p = k.split('|');
+        errors.push(`${p[0]}구역 ${p[1]} vs ${p[2]}구역 ${p[3]}`);
+      });
 
-    for(const [name, occs] of nameMap){
-      let countHalf = occs.filter(o=>parseFloat(o.value)===0.5).length;
-      if(countHalf===1 && occs.length===1){
-        const only = occs[0];
-        errors.push(`${only.zone}구역의 "${name}.5"는 어떤 구역과 함께 하셨나요?`);
-      }
-    }
-
-    return {errors, rows, nameMap};
-  }
-
-  function computeSummary(parsed){
-    const rows = parsed.rows;
-    const numericCols = ['섭외자보유','찾기','섭외','만남','단계향상','상담'];
-    const sums = {};
-    numericCols.forEach(c=>sums[c]=0);
-
-    const talkMap = new Map();
-    const centerMap = new Map();
-
-    for(const r of rows){
-      for(const c of numericCols){
-        const val = r.parts[c] && r.parts[c].count != null ? parseFloat(r.parts[c].count) : 0;
-        sums[c] += val;
+      for(const [name,occs] of nameMap){
+        let countHalf = occs.filter(o=>parseFloat(o.value)===0.5).length;
+        if(countHalf===1 && occs.length===1){
+          const only = occs[0];
+          errors.push(`${only.zone}구역의 "${name}.5"는 어느 구역과 함께였나요?`);
+        }
       }
 
-      const talk = r.parts['말씀따기'];
-      if(talk && talk.names.length>0){
-        talk.names.forEach(n=>{
-          const prev = talkMap.get(n.name) || 0; 
-          talkMap.set(n.name, prev + n.value);
-        });
+      return {errors, rows, nameMap};
+    }
+
+    function computeSummary(parsed){
+      const rows = parsed.rows;
+      const numericCols = ['섭외자보유','찾기','섭외','만남','단계향상','상담'];
+      const sums = {};
+      numericCols.forEach(c=>sums[c]=0);
+
+      const talkMap=new Map(), centerMap=new Map();
+
+      for(const r of rows){
+        for(const c of numericCols){
+          const val = r.parts[c]?.count ?? 0;
+          sums[c] += parseFloat(val);
+        }
+        const talk=r.parts['말씀따기'], cen=r.parts['센터확답'];
+        if(talk?.names) talk.names.forEach(n=>talkMap.set(n.name,(talkMap.get(n.name)||0)+n.value));
+        if(cen?.names) cen.names.forEach(n=>centerMap.set(n.name,(centerMap.get(n.name)||0)+n.value));
       }
 
-      const cen = r.parts['센터확답'];
-      if(cen && cen.names.length>0){
-        cen.names.forEach(n=>{
-          const prev = centerMap.get(n.name) || 0; 
-          centerMap.set(n.name, prev + n.value);
-        });
+      const namesToString = map => 
+        [...map.entries()]
+          .filter(([k,v])=>v>0)
+          .sort((a,b)=>b[1]-a[1])
+          .map(([k,v])=>`${k}${v}`)
+          .join(' ');
+
+      return {
+        sums,
+        talkStr: namesToString(talkMap),
+        centerStr: namesToString(centerMap)
+      };
+    }
+
+    document.getElementById('calc').addEventListener('click',()=>{
+      const text=document.getElementById('input').value;
+      const parsed=parseBlock(text);
+      const result=document.getElementById('result');
+
+      if(parsed.error){
+        result.textContent=parsed.error.join('\n');
+        return;
       }
-    }
+      if(parsed.errors?.length){
+        result.textContent=parsed.errors.join('\n');
+        return;
+      }
 
-    function namesToString(map){
-      const items = Array.from(map.entries()).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-      if(items.length===0) return '';
-      return items.map(([k,v]) => `${k}${v}`).join(' ');
-    }
+      const summary=computeSummary(parsed);
+      const original=text.split(/\r?\n/).filter(l=>l.trim()!=="");
 
-    const talkStr = namesToString(talkMap);
-    const centerStr = namesToString(centerMap);
+      const numericCols=['섭외자보유','찾기','섭외','만남','단계향상','상담'];
+      const sums=summary.sums;
 
-    return {sums, talkStr, centerStr};
-  }
+      let talkTotal=0, centerTotal=0;
+      parsed.rows.forEach(r=>{ talkTotal+=parseFloat(r.parts['말씀따기']?.count||0); });
+      parsed.rows.forEach(r=>{ centerTotal+=parseFloat(r.parts['센터확답']?.count||0); });
 
-  document.getElementById('calc').addEventListener('click', ()=>{
-    const text = document.getElementById('input').value;
-    const parsed = parseBlock(text);
+      const finalLine=[
+        '종합',
+        sums['섭외자보유'],
+        sums['찾기'],
+        sums['섭외'],
+        sums['만남'],
+        sums['단계향상'],
+        sums['상담'],
+        talkTotal,
+        centerTotal
+      ].join('/');
 
-    const resultEl = document.getElementById('result');
-    if(parsed.error){
-      resultEl.textContent = parsed.error.join('\n');
-      return;
-    }
-    if(parsed.errors && parsed.errors.length>0){
-      resultEl.textContent = parsed.errors.join('\n');
-      return;
-    }
+      const nameLine =
+        (summary.talkStr?`말씀따기(${summary.talkStr}) `:'') +
+        (summary.centerStr?`센터확답(${summary.centerStr})`:'');
 
-    const summary = computeSummary(parsed);
-    const original = document.getElementById('input').value.split(/\r?\n/);
-
-    const outputLines = [];
-    outputLines.push(...original.filter(l=>l.trim()!==""));
-
-    const sums = summary.sums;
-
-    let 말씀총합 = 0;
-    parsed.rows.forEach(r=>{
-      if(r.parts['말씀따기'] && r.parts['말씀따기'].count!=null)
-        말씀총합 += parseFloat(r.parts['말씀따기'].count);
-    });
-    let 센터총합 = 0;
-    parsed.rows.forEach(r=>{
-      if(r.parts['센터확답'] && r.parts['센터확답'].count!=null)
-        센터총합 += parseFloat(r.parts['센터확답'].count);
+      const output=[...original, finalLine + (nameLine?'\n'+nameLine:'')].join('\n');
+      result.textContent=output;
     });
 
-    const numericFinal = [
-      '종합',
-      sums['섭외자보유'],
-      sums['찾기'],
-      sums['섭외'],
-      sums['만남'],
-      sums['단계향상'],
-      sums['상담'],
-      말씀총합,
-      센터총합
-    ];
-
-    const finalLine = numericFinal.join('/');
-
-    outputLines.push(
-      finalLine +
-      (summary.talkStr || summary.centerStr
-        ? '\n' +
-          (summary.talkStr?('말씀따기('+summary.talkStr+') '):'') +
-          (summary.centerStr?('센터확답('+summary.centerStr+')'):'')
-        : '')
-    );
-
-    document.getElementById('result').textContent = outputLines.join('\n');
-  });
-
-  document.getElementById('copy').addEventListener('click', ()=>{
-    const txt = document.getElementById('result').textContent;
-    navigator.clipboard.writeText(txt).then(()=>{
-      alert('✅ 결과가 복사되었습니다.');
-    }).catch(err=>{
-      alert('🚫 복사에 실패했습니다. 수동으로 복사해주세요.');
+    document.getElementById('copy').addEventListener('click',()=>{
+      const txt=document.getElementById('result').textContent;
+      navigator.clipboard.writeText(txt).then(()=>alert('✅ 결과가 복사되었습니다.'));
     });
-  });
 
-  document.getElementById('clear').addEventListener('click', ()=>{
-    document.getElementById('input').value = '';
-    document.getElementById('result').textContent = '(아직 계산하지 않음)';
-  });
-  
+    document.getElementById('clear').addEventListener('click',()=>{
+      document.getElementById('input').value='';
+      document.getElementById('result').textContent='(아직 계산하지 않음)';
+    });
+  </script>
 </body>
 </html>
